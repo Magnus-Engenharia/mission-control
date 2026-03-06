@@ -47,6 +47,15 @@ Based on this answer and the conversation so far, either:
 1. Ask your next question (if you need more information)
 2. Complete the planning (if you have enough information)
 
+Rules:
+- Use the protocol in PLANNING.md.
+- Ask only task-specific multiple-choice questions with an "Other" option.
+- When complete, return strict JSON with status="complete".
+- In completion output, each agents[].role must be one of:
+  planner, backend-engineer, frontend-engineer, tester, reviewer, learner
+- Do NOT emit legacy aliases such as builder, verifier, orchestrator, qa.
+- If learner is included, keep its instructions observational/support-oriented (pattern capture, lessons learned), not as primary implementer.
+
 For another question, respond with JSON:
 {
   "question": "Your next question?",
@@ -70,7 +79,7 @@ If planning is complete, respond with JSON:
   "agents": [
     {
       "name": "Agent Name",
-      "role": "Agent role",
+      "role": "backend-engineer",
       "avatar_emoji": "🎯",
       "soul_md": "Agent personality...",
       "instructions": "Specific instructions..."

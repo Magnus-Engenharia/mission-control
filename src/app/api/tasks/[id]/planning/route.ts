@@ -140,12 +140,14 @@ export async function POST(
 Task Title: ${task.title}
 Task Description: ${task.description || 'No description provided'}
 
-You are starting a planning session for this task. Read PLANNING.md for your protocol.
+Follow the planning protocol in PLANNING.md (repo root) and apply these rules:
+- Ask focused, task-specific multiple-choice questions.
+- Include an "Other" option.
+- Stop asking once the task is sufficiently specified for execution.
+- Final plan must use canonical roles only: planner, backend-engineer, frontend-engineer, tester, reviewer, learner (optional).
+- Do NOT use legacy role aliases in outputs (builder, verifier, orchestrator, qa).
 
-Generate your FIRST question to understand what the user needs. Remember:
-- Questions must be multiple choice
-- Include an "Other" option
-- Be specific to THIS task, not generic
+Generate your FIRST question now.
 
 Respond with ONLY valid JSON in this format:
 {
