@@ -104,25 +104,47 @@ export async function DELETE(
       return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
     }
     
-    // Check if workspace has tasks or agents
-    const taskCount = db.prepare(
-      'SELECT COUNT(*) as count FROM tasks WHERE workspace_id = ?'
-    ).get(id) as { count: number };
-    
-    const agentCount = db.prepare(
-      'SELECT COUNT(*) as count FROM agents WHERE workspace_id = ?'
-    ).get(id) as { count: number };
-    
-    if (taskCount.count > 0 || agentCount.count > 0) {
-      return NextResponse.json({ 
-        error: 'Cannot delete workspace with existing tasks or agents',
-        taskCount: taskCount.count,
-        agentCount: agentCount.count
-      }, { status: 400 });
-    }
-    
-    db.prepare('DELETE FROM workspaces WHERE id = ?').run(id);
-    
+    const deleteWorkspaceTx = db.transaction((workspaceId: string) => {
+      const taskIds = db
+        .prepare('SELECT id FROM tasks WHERE workspace_id = ?')
+        .all(workspaceId) as { id: string }[];
+      const agentIds = db
+        .prepare('SELECT id FROM agents WHERE workspace_id = ?')
+        .all(workspaceId) as { id: string }[];
+
+      const taskIdList = taskIds.map((t) => t.id);
+      const agentIdList = agentIds.map((a) => a.id);
+
+      const deleteByIds = (sqlPrefix: string, ids: string[]) => {
+        if (ids.length === 0) return;
+        const placeholders = ids.map(() => '?').join(', ');
+        db.prepare(`${sqlPrefix} (${placeholders})`).run(...ids);
+      };
+
+      // Remove references to workspace-scoped tasks/agents first
+      deleteByIds('DELETE FROM openclaw_sessions WHERE task_id IN', taskIdList);
+      deleteByIds('DELETE FROM openclaw_sessions WHERE agent_id IN', agentIdList);
+      deleteByIds('DELETE FROM events WHERE task_id IN', taskIdList);
+      deleteByIds('DELETE FROM events WHERE agent_id IN', agentIdList);
+      deleteByIds('DELETE FROM messages WHERE sender_agent_id IN', agentIdList);
+
+      // Conversation rows linked to workspace tasks
+      deleteByIds('DELETE FROM conversations WHERE task_id IN', taskIdList);
+
+      // Workspace-scoped rows
+      db.prepare('DELETE FROM knowledge_entries WHERE workspace_id = ?').run(workspaceId);
+      db.prepare('DELETE FROM workflow_templates WHERE workspace_id = ?').run(workspaceId);
+
+      // Core entities (task child tables cascade via FK)
+      db.prepare('DELETE FROM tasks WHERE workspace_id = ?').run(workspaceId);
+      db.prepare('DELETE FROM agents WHERE workspace_id = ?').run(workspaceId);
+
+      // Finally remove workspace
+      db.prepare('DELETE FROM workspaces WHERE id = ?').run(workspaceId);
+    });
+
+    deleteWorkspaceTx(id);
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Failed to delete workspace:', error);

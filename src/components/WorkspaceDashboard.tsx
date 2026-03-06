@@ -215,10 +215,10 @@ function WorkspaceCard({ workspace, onDelete }: { workspace: WorkspaceStats; onD
           </div>
           
           <p className="text-mc-text-secondary mb-6">
-            Are you sure you want to delete <strong>{workspace.name}</strong>? 
-            {workspace.taskCounts.total > 0 && (
+            Are you sure you want to delete <strong>{workspace.name}</strong>?
+            {(workspace.taskCounts.total > 0 || workspace.agentCount > 0) && (
               <span className="block mt-2 text-mc-accent-red">
-                ⚠️ This workspace has {workspace.taskCounts.total} task(s). Delete them first.
+                ⚠️ This will also remove {workspace.taskCounts.total} task(s) and {workspace.agentCount} agent(s) in this workspace.
               </span>
             )}
           </p>
@@ -232,7 +232,7 @@ function WorkspaceCard({ workspace, onDelete }: { workspace: WorkspaceStats; onD
             </button>
             <button
               onClick={handleDelete}
-              disabled={deleting || workspace.taskCounts.total > 0 || workspace.agentCount > 0}
+              disabled={deleting}
               className="px-4 py-2 bg-mc-accent-red text-white rounded-lg font-medium hover:bg-mc-accent-red/90 disabled:opacity-50"
             >
               {deleting ? 'Deleting...' : 'Delete Workspace'}
