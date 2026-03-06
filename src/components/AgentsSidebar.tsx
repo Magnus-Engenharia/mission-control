@@ -217,13 +217,13 @@ export function AgentsSidebar({ workspaceId, mobileMode = false, isPortrait = tr
                     <span className="font-medium text-sm truncate">{agent.name}</span>
                     {!!agent.is_master && <span className="text-xs text-mc-accent-yellow">★</span>}
                   </div>
-                  <div className="text-xs text-mc-text-secondary truncate flex items-center gap-1">
-                    {agent.role}
+                  <div className="text-xs text-mc-text-secondary flex items-center gap-1 min-w-0">
                     {agent.source === 'gateway' && (
-                      <span className="text-[10px] px-1 py-0 bg-blue-500/20 text-blue-400 rounded" title="Imported from Gateway">
+                      <span className="text-[10px] px-1 py-0 bg-blue-500/20 text-blue-400 rounded shrink-0" title="Imported from Gateway">
                         GW
                       </span>
                     )}
+                    <span className="truncate">{agent.role}</span>
                   </div>
                 </div>
 
