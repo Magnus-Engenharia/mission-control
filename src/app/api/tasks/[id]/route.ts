@@ -374,14 +374,18 @@ export async function DELETE(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    // Delete or nullify related records first (foreign key constraints)
-    // Note: task_activities and task_deliverables have ON DELETE CASCADE
+    // Delete/nullify related records first (be explicit; schema can vary)
+    run('DELETE FROM planning_questions WHERE task_id = ?', [id]);
+    run('DELETE FROM planning_specs WHERE task_id = ?', [id]);
+    run('DELETE FROM knowledge_entries WHERE task_id = ?', [id]);
+    run('DELETE FROM task_roles WHERE task_id = ?', [id]);
+    run('DELETE FROM task_activities WHERE task_id = ?', [id]);
+    run('DELETE FROM task_deliverables WHERE task_id = ?', [id]);
     run('DELETE FROM openclaw_sessions WHERE task_id = ?', [id]);
     run('DELETE FROM events WHERE task_id = ?', [id]);
-    // Conversations reference tasks - nullify or delete
     run('UPDATE conversations SET task_id = NULL WHERE task_id = ?', [id]);
 
-    // Now delete the task (cascades to task_activities and task_deliverables)
+    // Now delete the task itself
     run('DELETE FROM tasks WHERE id = ?', [id]);
 
     // Broadcast deletion via SSE

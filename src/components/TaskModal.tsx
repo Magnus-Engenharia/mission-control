@@ -167,14 +167,18 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
 
     try {
       const res = await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' });
-      if (res.ok) {
-        useMissionControl.setState((state) => ({
-          tasks: state.tasks.filter((t) => t.id !== task.id),
-        }));
-        onClose();
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error || `Delete failed (${res.status})`);
       }
+
+      useMissionControl.setState((state) => ({
+        tasks: state.tasks.filter((t) => t.id !== task.id),
+      }));
+      onClose();
     } catch (error) {
       console.error('Failed to delete task:', error);
+      alert(error instanceof Error ? error.message : 'Failed to delete task');
     }
   };
 
