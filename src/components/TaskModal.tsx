@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { X, Save, Trash2, Activity, Package, Bot, ClipboardList, Plus, Users } from 'lucide-react';
 import { useMissionControl } from '@/lib/store';
 import { triggerAutoDispatch, shouldTriggerAutoDispatch } from '@/lib/auto-dispatch';
@@ -10,7 +10,7 @@ import { SessionsList } from './SessionsList';
 import { PlanningTab } from './PlanningTab';
 import { TeamTab } from './TeamTab';
 import { AgentModal } from './AgentModal';
-import type { Task, TaskPriority, TaskStatus } from '@/lib/types';
+import type { Task, TaskPriority, TaskStatus, Project } from '@/lib/types';
 
 type TabType = 'overview' | 'planning' | 'team' | 'activity' | 'deliverables' | 'sessions';
 
@@ -25,6 +25,7 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAgentModal, setShowAgentModal] = useState(false);
   const [usePlanningMode, setUsePlanningMode] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
   // Auto-switch to planning tab if task is in planning status
   const [activeTab, setActiveTab] = useState<TabType>(task?.status === 'planning' ? 'planning' : 'overview');
 
@@ -39,8 +40,20 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
     priority: task?.priority || 'normal' as TaskPriority,
     status: task?.status || 'inbox' as TaskStatus,
     assigned_agent_id: task?.assigned_agent_id || '',
+    project_id: task?.project_id || '',
     due_date: task?.due_date || '',
   });
+
+  useEffect(() => {
+    const wsId = workspaceId || task?.workspace_id || 'default';
+    fetch(`/api/projects?workspace_id=${encodeURIComponent(wsId)}`)
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => setProjects(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        console.error('Failed to load projects:', err);
+        setProjects([]);
+      });
+  }, [workspaceId, task?.workspace_id]);
 
   const resolveStatus = (): TaskStatus => {
     // Planning mode overrides everything
@@ -72,6 +85,7 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
         ...form,
         status: resolvedStatus,
         assigned_agent_id: form.assigned_agent_id || null,
+        project_id: form.project_id || null,
         due_date: form.due_date || null,
         workspace_id: workspaceId || task?.workspace_id || 'default',
       };
@@ -148,6 +162,7 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
           priority: 'normal' as TaskPriority,
           status: 'inbox' as TaskStatus,
           assigned_agent_id: '',
+          project_id: '',
           due_date: '',
         });
         setUsePlanningMode(false);
@@ -307,6 +322,23 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
               <option value="__add_new__" className="text-mc-accent">
                 ➕ Add new agent...
               </option>
+            </select>
+          </div>
+
+          {/* Project */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Project</label>
+            <select
+              value={form.project_id}
+              onChange={(e) => setForm({ ...form, project_id: e.target.value })}
+              className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
+            >
+              <option value="">No project (legacy pathing)</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name} — {project.repo_path}
+                </option>
+              ))}
             </select>
           </div>
 
