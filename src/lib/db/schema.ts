@@ -21,6 +21,21 @@ CREATE TABLE IF NOT EXISTS workspaces (
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
+-- Projects table
+CREATE TABLE IF NOT EXISTS projects (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id),
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL,
+  repo_path TEXT NOT NULL,
+  platform TEXT,
+  template TEXT,
+  is_active INTEGER DEFAULT 1,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(workspace_id, slug)
+);
+
 -- Agents table
 CREATE TABLE IF NOT EXISTS agents (
   id TEXT PRIMARY KEY,
@@ -55,6 +70,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   assigned_agent_id TEXT REFERENCES agents(id),
   created_by_agent_id TEXT REFERENCES agents(id),
   workspace_id TEXT DEFAULT 'default' REFERENCES workspaces(id),
+  project_id TEXT REFERENCES projects(id),
   business_id TEXT DEFAULT 'default',
   due_date TEXT,
   workflow_template_id TEXT REFERENCES workflow_templates(id),
@@ -218,7 +234,9 @@ CREATE TABLE IF NOT EXISTS task_deliverables (
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_assigned ON tasks(assigned_agent_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_workspace ON tasks(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_agents_workspace ON agents(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_projects_workspace ON projects(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_events_created ON events(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agents_status ON agents(status);

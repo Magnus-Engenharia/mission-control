@@ -24,10 +24,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { id } = await params;
 
     // Get task with agent info
-    const task = queryOne<Task & { assigned_agent_name?: string; workspace_id: string }>(
-      `SELECT t.*, a.name as assigned_agent_name, a.is_master
+    const task = queryOne<Task & { assigned_agent_name?: string; workspace_id: string; project_name?: string; project_repo_path?: string }>(
+      `SELECT t.*, a.name as assigned_agent_name, a.is_master,
+              p.name as project_name, p.repo_path as project_repo_path
        FROM tasks t
        LEFT JOIN agents a ON t.assigned_agent_id = a.id
+       LEFT JOIN projects p ON t.project_id = p.id
        WHERE t.id = ?`,
       [id]
     );
@@ -153,11 +155,19 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       urgent: '🔴'
     }[task.priority] || '⚪';
 
-    // Get project path for deliverables
+    // Resolve project path for deliverables
     const projectsPath = getProjectsPath();
     const projectDir = task.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    const taskProjectDir = `${projectsPath}/${projectDir}`;
+    const fallbackTaskProjectDir = `${projectsPath}/${projectDir}`;
+    const taskProjectDir = task.project_id && task.project_repo_path
+      ? `${task.project_repo_path.replace(/\/$/, '')}/work/${task.id}`
+      : fallbackTaskProjectDir;
     const missionControlUrl = getMissionControlUrl();
+
+    const projectContextSection = task.project_id && task.project_repo_path
+      ? `**PROJECT:** ${task.project_name || task.project_id}\n**PROJECT ROOT:** ${task.project_repo_path}\n`
+      : '';
+
 
     // Parse planning_spec and planning_agents if present (stored as JSON text on the task row)
     const rawTask = task as Task & { assigned_agent_name?: string; workspace_id: string; planning_spec?: string; planning_agents?: string };
@@ -295,7 +305,7 @@ ${task.description ? `**Description:** ${task.description}\n` : ''}
 **Priority:** ${task.priority.toUpperCase()}
 ${task.due_date ? `**Due:** ${task.due_date}\n` : ''}
 **Task ID:** ${task.id}
-${planningSpecSection}${agentInstructionsSection}${knowledgeSection}
+${projectContextSection}${planningSpecSection}${agentInstructionsSection}${knowledgeSection}
 ${isBuilder ? `**OUTPUT DIRECTORY:** ${taskProjectDir}\nCreate this directory and save all deliverables there.\n` : `**OUTPUT DIRECTORY:** ${taskProjectDir}\n`}
 ${completionInstructions}
 

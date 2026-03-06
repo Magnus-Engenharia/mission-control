@@ -35,6 +35,7 @@ export const CreateTaskSchema = z.object({
   created_by_agent_id: z.string().uuid().optional().nullable(),
   business_id: z.string().optional(),
   workspace_id: z.string().optional(),
+  project_id: z.string().uuid().optional().nullable(),
   due_date: z.string().optional().nullable(),
 });
 
@@ -45,6 +46,7 @@ export const UpdateTaskSchema = z.object({
   priority: TaskPriority.optional(),
   assigned_agent_id: z.string().uuid().optional().nullable(),
   workflow_template_id: z.string().optional().nullable(),
+  project_id: z.string().uuid().optional().nullable(),
   due_date: z.string().optional().nullable(),
   updated_by_agent_id: z.string().uuid().optional(),
 });

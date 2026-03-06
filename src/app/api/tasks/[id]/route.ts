@@ -101,6 +101,10 @@ export async function PATCH(
       updates.push('due_date = ?');
       values.push(validatedData.due_date);
     }
+    if (validatedData.project_id !== undefined) {
+      updates.push('project_id = ?');
+      values.push(validatedData.project_id);
+    }
     if (validatedData.workflow_template_id !== undefined) {
       updates.push('workflow_template_id = ?');
       values.push(validatedData.workflow_template_id);

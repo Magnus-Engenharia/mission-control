@@ -22,10 +22,13 @@ export async function GET(request: NextRequest) {
         t.*,
         aa.name as assigned_agent_name,
         aa.avatar_emoji as assigned_agent_emoji,
-        ca.name as created_by_agent_name
+        ca.name as created_by_agent_name,
+        p.name as project_name,
+        p.repo_path as project_repo_path
       FROM tasks t
       LEFT JOIN agents aa ON t.assigned_agent_id = aa.id
       LEFT JOIN agents ca ON t.created_by_agent_id = ca.id
+      LEFT JOIN projects p ON t.project_id = p.id
       WHERE 1=1
     `;
     const params: unknown[] = [];
@@ -56,9 +59,9 @@ export async function GET(request: NextRequest) {
 
     sql += ' ORDER BY t.created_at DESC';
 
-    const tasks = queryAll<Task & { assigned_agent_name?: string; assigned_agent_emoji?: string; created_by_agent_name?: string }>(sql, params);
+    const tasks = queryAll<Task & { assigned_agent_name?: string; assigned_agent_emoji?: string; created_by_agent_name?: string; project_name?: string; project_repo_path?: string }>(sql, params);
 
-    // Transform to include nested agent info
+    // Transform to include nested agent/project info
     const transformedTasks = tasks.map((task) => ({
       ...task,
       assigned_agent: task.assigned_agent_id
@@ -66,6 +69,13 @@ export async function GET(request: NextRequest) {
             id: task.assigned_agent_id,
             name: task.assigned_agent_name,
             avatar_emoji: task.assigned_agent_emoji,
+          }
+        : undefined,
+      project: task.project_id
+        ? {
+            id: task.project_id,
+            name: task.project_name,
+            repo_path: task.project_repo_path,
           }
         : undefined,
     }));
@@ -108,8 +118,8 @@ export async function POST(request: NextRequest) {
     const workflowTemplateId = defaultTemplate?.id || null;
 
     run(
-      `INSERT INTO tasks (id, title, description, status, priority, assigned_agent_id, created_by_agent_id, workspace_id, business_id, due_date, workflow_template_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tasks (id, title, description, status, priority, assigned_agent_id, created_by_agent_id, workspace_id, project_id, business_id, due_date, workflow_template_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         validatedData.title,
@@ -119,6 +129,7 @@ export async function POST(request: NextRequest) {
         validatedData.assigned_agent_id || null,
         validatedData.created_by_agent_id || null,
         workspaceId,
+        validatedData.project_id || null,
         validatedData.business_id || 'default',
         validatedData.due_date || null,
         workflowTemplateId,

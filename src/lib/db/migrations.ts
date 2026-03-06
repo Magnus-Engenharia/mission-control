@@ -810,6 +810,39 @@ const migrations: Migration[] = [
 
       console.log('[Migration 016] Five mapped agents ensured for all workspaces');
     }
+  },
+  {
+    id: '017',
+    name: 'projects_registry_and_task_linkage',
+    up: (db) => {
+      console.log('[Migration 017] Creating projects registry and task linkage...');
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS projects (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES workspaces(id),
+          name TEXT NOT NULL,
+          slug TEXT NOT NULL,
+          repo_path TEXT NOT NULL,
+          platform TEXT,
+          template TEXT,
+          is_active INTEGER DEFAULT 1,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now')),
+          UNIQUE(workspace_id, slug)
+        )
+      `);
+
+      const tasksInfo = db.prepare('PRAGMA table_info(tasks)').all() as { name: string }[];
+      if (!tasksInfo.some(col => col.name === 'project_id')) {
+        db.exec('ALTER TABLE tasks ADD COLUMN project_id TEXT REFERENCES projects(id)');
+      }
+
+      db.exec('CREATE INDEX IF NOT EXISTS idx_projects_workspace ON projects(workspace_id)');
+      db.exec('CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id)');
+
+      console.log('[Migration 017] Projects registry ready');
+    }
   }
 ];
 

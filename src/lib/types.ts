@@ -67,6 +67,7 @@ export interface Task {
   assigned_agent_id: string | null;
   created_by_agent_id: string | null;
   workspace_id: string;
+  project_id?: string | null;
   business_id: string;
   due_date?: string;
   workflow_template_id?: string;
@@ -132,6 +133,19 @@ export interface Workspace {
   slug: string;
   description?: string;
   icon: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Project {
+  id: string;
+  workspace_id: string;
+  name: string;
+  slug: string;
+  repo_path: string;
+  platform?: string;
+  template?: string;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -318,6 +332,8 @@ export interface CreateTaskRequest {
   priority?: TaskPriority;
   assigned_agent_id?: string;
   created_by_agent_id?: string;
+  workspace_id?: string;
+  project_id?: string | null;
   business_id?: string;
   due_date?: string;
 }
