@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Save, Trash2 } from 'lucide-react';
+import { X, Save, Trash2, Link2 } from 'lucide-react';
 import { useMissionControl } from '@/lib/store';
 import type { Agent, AgentStatus, DiscoveredAgent } from '@/lib/types';
 
@@ -20,6 +20,8 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableOpenClawAgents, setAvailableOpenClawAgents] = useState<DiscoveredAgent[]>([]);
   const [openClawAgentsLoading, setOpenClawAgentsLoading] = useState(true);
+  const [mappingNow, setMappingNow] = useState(false);
+  const [mappingNotice, setMappingNotice] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     name: agent?.name || '',
@@ -34,6 +36,8 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
     model: agent?.model || '',
     gateway_agent_id: agent?.gateway_agent_id || '',
     source: agent?.source || 'local',
+    mapping_status: agent?.mapping_status || (agent?.gateway_agent_id ? 'mapped' : 'unmapped'),
+    mapping_error: agent?.mapping_error || '',
   });
 
   // Load available OpenClaw agents from Gateway discovery
@@ -70,6 +74,9 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
         body: JSON.stringify({
           ...form,
           source: form.gateway_agent_id ? 'gateway' : 'local',
+          mapping_status: form.gateway_agent_id ? 'mapped' : (form.mapping_status || 'unmapped'),
+          mapping_error: form.gateway_agent_id ? null : (form.mapping_error || null),
+          hydrate_from_openclaw: !!form.gateway_agent_id,
           workspace_id: workspaceId || agent?.workspace_id || 'default',
         }),
       });
@@ -109,6 +116,46 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
       }
     } catch (error) {
       console.error('Failed to delete agent:', error);
+    }
+  };
+
+  const handleMapNow = async () => {
+    if (!agent || !form.gateway_agent_id) return;
+    setMappingNow(true);
+    setMappingNotice(null);
+
+    try {
+      const res = await fetch(`/api/agents/${agent.id}/map`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gateway_agent_id: form.gateway_agent_id,
+          hydrate_from_openclaw: true,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setMappingNotice(data.error || 'Failed to map agent');
+        return;
+      }
+
+      updateAgent(data);
+      setForm((prev) => ({
+        ...prev,
+        source: 'gateway',
+        mapping_status: data.mapping_status || 'mapped',
+        mapping_error: data.mapping_error || '',
+        soul_md: data.soul_md || prev.soul_md,
+        user_md: data.user_md || prev.user_md,
+        agents_md: data.agents_md || prev.agents_md,
+      }));
+      setMappingNotice('Mapped and synced from OpenClaw agent files.');
+    } catch (error) {
+      console.error('Failed to map agent:', error);
+      setMappingNotice('Failed to map agent');
+    } finally {
+      setMappingNow(false);
     }
   };
 
@@ -283,6 +330,27 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
                   </p>
                 )}
               </div>
+
+              {agent && (
+                <div className="p-3 border border-mc-border rounded-lg bg-mc-bg">
+                  <div className="text-xs text-mc-text-secondary mb-2">
+                    Mapping status: <span className="font-medium text-mc-text">{form.mapping_status || 'unmapped'}</span>
+                    {form.mapping_error && <span className="text-red-400"> — {form.mapping_error}</span>}
+                  </div>
+                  <button
+                    type="button"
+                    disabled={!form.gateway_agent_id || mappingNow}
+                    onClick={handleMapNow}
+                    className="min-h-11 inline-flex items-center gap-2 px-3 py-2 bg-blue-500/15 border border-blue-500/30 text-blue-300 rounded text-sm hover:bg-blue-500/25 disabled:opacity-50"
+                  >
+                    <Link2 className="w-4 h-4" />
+                    {mappingNow ? 'Mapping...' : 'Map & Sync from OpenClaw'}
+                  </button>
+                  {mappingNotice && (
+                    <p className="text-xs mt-2 text-mc-text-secondary">{mappingNotice}</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
