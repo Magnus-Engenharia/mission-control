@@ -8,6 +8,7 @@ import type { WorkspaceStats } from '@/lib/types';
 export function WorkspaceDashboard() {
   const [workspaces, setWorkspaces] = useState<WorkspaceStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
@@ -15,15 +16,27 @@ export function WorkspaceDashboard() {
   }, []);
 
   const loadWorkspaces = async () => {
+    setLoading(true);
+    setError(null);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     try {
-      const res = await fetch('/api/workspaces?stats=true');
-      if (res.ok) {
-        const data = await res.json();
-        setWorkspaces(data);
+      const res = await fetch('/api/workspaces?stats=true', { signal: controller.signal, cache: 'no-store' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || `Failed to load workspaces (${res.status})`);
       }
+
+      const data = await res.json();
+      setWorkspaces(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to load workspaces:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load workspaces');
+      setWorkspaces([]);
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   };
@@ -34,6 +47,24 @@ export function WorkspaceDashboard() {
         <div className="text-center">
           <div className="text-4xl mb-4 animate-pulse">🦞</div>
           <p className="text-mc-text-secondary">Loading workspaces...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-mc-bg flex items-center justify-center p-6">
+        <div className="text-center max-w-md">
+          <div className="text-4xl mb-3">⚠️</div>
+          <h2 className="text-lg font-semibold mb-2">Couldn&apos;t load workspaces</h2>
+          <p className="text-sm text-mc-text-secondary mb-4">{error}</p>
+          <button
+            onClick={loadWorkspaces}
+            className="min-h-11 px-4 rounded-lg bg-mc-accent text-mc-bg font-medium hover:bg-mc-accent/90"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
