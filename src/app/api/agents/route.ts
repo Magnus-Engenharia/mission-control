@@ -37,6 +37,29 @@ export async function POST(request: NextRequest) {
 
     const id = uuidv4();
     const now = new Date().toISOString();
+    const workspaceId = (body as { workspace_id?: string }).workspace_id || 'default';
+
+    // Guardrails: cap agent count per workspace and prevent duplicate name/role spam
+    const MAX_AGENTS_PER_WORKSPACE = 12;
+    const countRow = queryOne<{ count: number }>('SELECT COUNT(*) as count FROM agents WHERE workspace_id = ?', [workspaceId]);
+    const currentCount = Number(countRow?.count || 0);
+    if (currentCount >= MAX_AGENTS_PER_WORKSPACE) {
+      return NextResponse.json(
+        { error: `Workspace agent limit reached (${MAX_AGENTS_PER_WORKSPACE}). Delete or archive agents before creating more.` },
+        { status: 400 }
+      );
+    }
+
+    const duplicate = queryOne<{ id: string }>(
+      `SELECT id FROM agents WHERE workspace_id = ? AND (lower(name) = lower(?) OR lower(role) = lower(?)) LIMIT 1`,
+      [workspaceId, body.name, body.role]
+    );
+    if (duplicate) {
+      return NextResponse.json(
+        { error: 'Agent with same name or role already exists in this workspace.' },
+        { status: 409 }
+      );
+    }
 
     run(
       `INSERT INTO agents (id, name, role, description, avatar_emoji, is_master, workspace_id, soul_md, user_md, agents_md, model, created_at, updated_at)
@@ -48,7 +71,7 @@ export async function POST(request: NextRequest) {
         body.description || null,
         body.avatar_emoji || '🤖',
         body.is_master ? 1 : 0,
-        (body as { workspace_id?: string }).workspace_id || 'default',
+        workspaceId,
         body.soul_md || null,
         body.user_md || null,
         body.agents_md || null,

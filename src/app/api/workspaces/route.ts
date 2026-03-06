@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, description, icon } = body;
+    const { name, description, icon, seed_default_agents } = body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
@@ -102,9 +102,11 @@ export async function POST(request: NextRequest) {
       VALUES (?, ?, ?, ?, ?)
     `).run(id, name.trim(), slug, description || null, icon || '📁');
 
-    // Clone workflow templates and bootstrap core agents for the new workspace
+    // Clone workflow templates and optionally bootstrap core agents for the new workspace
     cloneWorkflowTemplates(db, id);
-    bootstrapCoreAgents(id);
+    if (seed_default_agents !== false) {
+      bootstrapCoreAgents(id);
+    }
 
     const workspace = db.prepare('SELECT * FROM workspaces WHERE id = ?').get(id);
     return NextResponse.json(workspace, { status: 201 });
