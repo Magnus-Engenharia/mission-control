@@ -11,10 +11,44 @@ interface GatewayAgent {
   id?: string;
   name?: string;
   label?: string;
-  model?: string;
+  model?: string | { primary?: string; [key: string]: unknown };
   channel?: string;
   status?: string;
   [key: string]: unknown;
+}
+
+interface GatewayConfigLike {
+  config?: {
+    agents?: {
+      list?: Array<{
+        id?: string;
+        name?: string;
+        model?: {
+          primary?: string;
+        };
+      }>;
+    };
+  };
+}
+
+function extractPrimaryModelFromGatewayAgent(agent: GatewayAgent): string | undefined {
+  const directModel = agent.model;
+  if (typeof directModel === 'string' && directModel.trim()) return directModel;
+  if (directModel && typeof directModel === 'object' && typeof directModel.primary === 'string' && directModel.primary.trim()) {
+    return directModel.primary;
+  }
+
+  const nestedPrimaryCandidates = [
+    (agent as { config?: { model?: { primary?: unknown } } }).config?.model?.primary,
+    (agent as { models?: { primary?: unknown } }).models?.primary,
+    (agent as { runtime?: { model?: { primary?: unknown } } }).runtime?.model?.primary,
+  ];
+
+  for (const candidate of nestedPrimaryCandidates) {
+    if (typeof candidate === 'string' && candidate.trim()) return candidate;
+  }
+
+  return undefined;
 }
 
 // GET /api/agents/discover - Discover existing agents from the OpenClaw Gateway
@@ -44,6 +78,25 @@ export async function GET() {
       );
     }
 
+    let modelByAgentIdFromConfig = new Map<string, string>();
+    try {
+      const config = (await client.getConfig()) as GatewayConfigLike;
+      const configuredAgents = config?.config?.agents?.list || [];
+      modelByAgentIdFromConfig = new Map(
+        configuredAgents
+          .map((entry) => {
+            const key = entry.id || entry.name;
+            const model = entry.model?.primary;
+            if (!key || !model) return null;
+            return [key, model] as const;
+          })
+          .filter((x): x is readonly [string, string] => x !== null)
+      );
+    } catch (err) {
+      // Non-fatal: discovery still works without config snapshot
+      console.warn('Failed to resolve model.primary from config.get:', err);
+    }
+
     if (!Array.isArray(gatewayAgents)) {
       return NextResponse.json(
         { error: 'Unexpected response from Gateway agents.list' },
@@ -63,11 +116,16 @@ export async function GET() {
     const discovered: DiscoveredAgent[] = gatewayAgents.map((ga) => {
       const gatewayId = ga.id || ga.name || '';
       const alreadyImported = importedGatewayIds.has(gatewayId);
+      const discoveredModel =
+        extractPrimaryModelFromGatewayAgent(ga) ||
+        (gatewayId ? modelByAgentIdFromConfig.get(gatewayId) : undefined) ||
+        (ga.name ? modelByAgentIdFromConfig.get(ga.name) : undefined);
+
       return {
         id: gatewayId,
         name: ga.name || ga.label || gatewayId,
         label: ga.label,
-        model: ga.model,
+        model: discoveredModel,
         channel: ga.channel,
         status: ga.status,
         already_imported: alreadyImported,
