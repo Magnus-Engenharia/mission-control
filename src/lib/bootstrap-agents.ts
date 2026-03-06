@@ -1,7 +1,7 @@
 /**
  * Bootstrap Core Agents
  *
- * Creates the core agents (Planner, Builder, Tester, Reviewer, Learner)
+ * Creates the core agents (Master Planner, Backend Engineer, Frontend Engineer, Tester, Reviewer)
  * for a workspace if it has zero agents. Also clones workflow
  * templates from the default workspace to new workspaces.
  */
@@ -32,28 +32,26 @@ Manages overall system, sets priorities, defines tasks. Follow specifications pr
 
 const SHARED_AGENTS_MD = `# Team Roster
 
-## Planner Agent (🧭)
-Owns planning quality. Runs clarification loops, turns vague asks into clear implementation specs, and defines acceptance criteria before execution.
+## Master Planner (🧭)
+Owns planning quality and dispatch readiness. Clarifies requirements and ensures each role is mapped to a real OpenClaw agent.
 
-## Builder Agent (🛠️)
-Creates deliverables from specs. Writes code, creates files, builds projects. When work comes back from failed QA, fixes all reported issues.
+## Backend Engineer (🛠️)
+Builds APIs, services, data changes, and reliability work.
 
-## Tester Agent (🧪) — Front-End QA
-Tests the app from the user's perspective. Clicks elements, checks rendering, verifies images/links, tests forms. This is FRONT-END testing — does the app work when you use it?
+## Frontend Engineer (🎨)
+Builds user-facing flows, interactions, and performance-focused UI.
 
-## Reviewer Agent (🔍) — Code QC
-Final quality gate. Reviews code quality, best practices, correctness, completeness. This is BACK-END/CODE review — is the code good? Works in the Verification column.
+## Tester (🧪) — Front-End QA
+Tests the app from the user's perspective and reports reproducible pass/fail evidence.
 
-## Learner Agent (📚)
-Observes all transitions. Captures patterns and lessons learned. Feeds knowledge back to improve future work.
+## Reviewer (🔍) — Code QC
+Final quality/security gate before completion.
 
 ## How We Work Together
-Builder → Tester (front-end QA) → Review Queue → Reviewer (code QC) → Done
-If Testing fails: back to Builder with front-end issues.
-If Verification fails: back to Builder with code issues.
-Learner watches all transitions and records lessons.
-Review is a queue — tasks wait there until the Reviewer is free.
-Only one task in Verification at a time.`;
+Planner → Backend/Frontend → Tester → Reviewer → Done
+If Testing fails: back to relevant engineer with issues.
+If Review fails: back to relevant engineer with code issues.
+Review is a queue — tasks wait there until Reviewer is free.`;
 
 interface AgentDef {
   name: string;
@@ -62,15 +60,17 @@ interface AgentDef {
   soulMd: string;
   isMaster?: boolean;
   sessionKeyPrefix?: string;
+  gatewayAgentId?: string;
 }
 
 const CORE_AGENTS: AgentDef[] = [
   {
-    name: 'Planner Agent',
+    name: 'Master Planner',
     role: 'planner',
     emoji: '🧭',
     isMaster: true,
-    sessionKeyPrefix: 'agent:main:',
+    gatewayAgentId: 'master-planner',
+    sessionKeyPrefix: 'agent:master-planner:',
     soulMd: `# Planner Agent
 
 You are the dedicated planning specialist.
@@ -90,33 +90,43 @@ A plan is complete only when execution can start with minimal ambiguity.
 If ambiguity remains, ask one more precise question instead of guessing.`,
   },
   {
-    name: 'Builder Agent',
-    role: 'builder',
+    name: 'Backend Engineer',
+    role: 'backend-engineer',
     emoji: '🛠️',
-    soulMd: `# Builder Agent
+    gatewayAgentId: 'backend-engineer',
+    sessionKeyPrefix: 'agent:backend-engineer:',
+    soulMd: `# Backend Engineer
 
-Expert builder. Follows specs exactly. Creates output in the designated project directory.
+Builds APIs, services, migrations, and reliability improvements.
 
 ## Core Responsibilities
-- Read the spec carefully before writing any code
-- Create all deliverables in the designated output directory
-- Register every deliverable via the API (POST .../deliverables)
-- Log activity when done (POST .../activities)
-- Update status to move the task forward (PATCH .../tasks/{id})
-
-## Fail-Loopback
-When tasks come back from failed QA (testing or verification), read the failure reason carefully and fix ALL issues mentioned. Do not partially fix — address every single point.
-
-## Quality Standards
-- Clean, well-structured code
-- Follow project conventions
-- No placeholder or stub code — everything must be functional
-- Test your work before marking complete`,
+- Implement backend scope from the approved plan
+- Preserve compatibility and data integrity
+- Ship production-grade code with clear error handling
+- Document assumptions and edge cases for QA/review`,
   },
   {
-    name: 'Tester Agent',
+    name: 'Frontend Engineer',
+    role: 'frontend-engineer',
+    emoji: '🎨',
+    gatewayAgentId: 'frontend-engineer',
+    sessionKeyPrefix: 'agent:frontend-engineer:',
+    soulMd: `# Frontend Engineer
+
+Builds user-facing experiences with high usability and performance.
+
+## Core Responsibilities
+- Implement UI flows from approved requirements
+- Keep interactions accessible and responsive
+- Validate visual and behavioral correctness locally
+- Provide clear handoff notes for Tester and Reviewer`,
+  },
+  {
+    name: 'Tester',
     role: 'tester',
     emoji: '🧪',
+    gatewayAgentId: 'tester',
+    sessionKeyPrefix: 'agent:tester:',
     soulMd: `# Tester Agent — Front-End QA
 
 Front-end QA specialist. Tests the app/project from the user's perspective.
@@ -140,9 +150,11 @@ Front-end QA specialist. Tests the app/project from the user's perspective.
 - Report failures with evidence (what you clicked, what happened, what should have happened)`,
   },
   {
-    name: 'Reviewer Agent',
+    name: 'Reviewer',
     role: 'reviewer',
     emoji: '🔍',
+    gatewayAgentId: 'reviewer',
+    sessionKeyPrefix: 'agent:reviewer:',
     soulMd: `# Reviewer Agent — Code Quality Gatekeeper
 
 Reviews code structure, best practices, patterns, completeness, correctness, and security.
@@ -167,37 +179,7 @@ Explain every issue with:
 
 Be specific. "Code quality could be better" is useless. "src/utils.ts:42 — missing null check on user input before database query" is actionable.`,
   },
-  {
-    name: 'Learner Agent',
-    role: 'learner',
-    emoji: '📚',
-    soulMd: `# Learner Agent
 
-Observes all task transitions — both passes and failures. Captures lessons learned and writes them to the knowledge base.
-
-## What You Capture
-- Failure patterns — what went wrong and why
-- Fix patterns — what the Builder did to fix failures
-- Checklists — recurring items that should be checked every time
-- Best practices — patterns that consistently lead to passes
-
-## How to Record
-POST /api/workspaces/{workspace_id}/knowledge
-Body: {
-  "task_id": "the task id",
-  "category": "failure" | "fix" | "pattern" | "checklist",
-  "title": "Brief, searchable title",
-  "content": "Detailed description",
-  "tags": ["relevant", "tags"],
-  "confidence": 0.0-1.0
-}
-
-## Guidelines
-- Focus on actionable insights that help the team avoid repeating mistakes
-- Higher confidence for patterns seen multiple times
-- Lower confidence for first-time observations
-- Tag entries so they can be found and injected into future dispatches`,
-  },
 ];
 
 // ── Public API ──────────────────────────────────────────────────────
@@ -235,8 +217,8 @@ export function bootstrapCoreAgentsRaw(
   const now = new Date().toISOString();
 
   const insert = db.prepare(`
-    INSERT INTO agents (id, name, role, description, avatar_emoji, status, is_master, workspace_id, soul_md, user_md, agents_md, source, session_key_prefix, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, 'standby', ?, ?, ?, ?, ?, 'local', ?, ?, ?)
+    INSERT INTO agents (id, name, role, description, avatar_emoji, status, is_master, workspace_id, soul_md, user_md, agents_md, source, gateway_agent_id, session_key_prefix, mapping_status, mapping_error, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, 'standby', ?, ?, ?, ?, ?, 'gateway', ?, ?, 'mapped', NULL, ?, ?)
   `);
 
   for (const agent of CORE_AGENTS) {
@@ -252,7 +234,8 @@ export function bootstrapCoreAgentsRaw(
       agent.soulMd,
       userMd,
       SHARED_AGENTS_MD,
-      agent.sessionKeyPrefix || null,
+      agent.gatewayAgentId || agent.name.toLowerCase().replace(/\s+/g, '-'),
+      agent.sessionKeyPrefix || `agent:${agent.gatewayAgentId || agent.name.toLowerCase().replace(/\s+/g, '-')}:`,
       now,
       now,
     );

@@ -639,8 +639,8 @@ const migrations: Migration[] = [
       const insert = db.prepare(`
         INSERT INTO agents (
           id, name, role, description, avatar_emoji, status, is_master, workspace_id,
-          soul_md, user_md, agents_md, source, session_key_prefix, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, 'standby', 1, ?, ?, ?, ?, 'local', ?, ?, ?)
+          soul_md, user_md, agents_md, source, gateway_agent_id, session_key_prefix, mapping_status, mapping_error, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 'standby', 1, ?, ?, ?, ?, 'gateway', ?, ?, 'mapped', NULL, ?, ?)
       `);
 
       for (const workspace of workspaces) {
@@ -657,7 +657,7 @@ const migrations: Migration[] = [
         ).get(workspace.id) as { id: string } | undefined;
 
         if (plannerExists) {
-          db.prepare(`UPDATE agents SET is_master = 1, session_key_prefix = COALESCE(session_key_prefix, 'agent:main:'), updated_at = ? WHERE id = ?`)
+          db.prepare(`UPDATE agents SET is_master = 1, source = COALESCE(source, 'gateway'), gateway_agent_id = COALESCE(gateway_agent_id, 'master-planner'), mapping_status = COALESCE(mapping_status, 'mapped'), session_key_prefix = COALESCE(session_key_prefix, 'agent:master-planner:'), updated_at = ? WHERE id = ?`)
             .run(now, plannerExists.id);
           console.log(`[Migration 014] Promoted existing planner to master for workspace ${workspace.id}`);
           continue;
@@ -666,15 +666,16 @@ const migrations: Migration[] = [
         const id = crypto.randomUUID();
         insert.run(
           id,
-          'Planner Agent',
+          'Master Planner',
           'planner',
-          'Planner Agent — dedicated planning specialist',
+          'Master Planner — dedicated planning specialist',
           '🧭',
           workspace.id,
           plannerSoul,
           sharedUserMd,
-          'Planner Agent is the default planning orchestrator for this workspace.',
-          'agent:main:',
+          'Master Planner is the default planning orchestrator for this workspace.',
+          'master-planner',
+          'agent:master-planner:',
           now,
           now,
         );
