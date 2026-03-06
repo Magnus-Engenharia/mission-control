@@ -705,6 +705,111 @@ const migrations: Migration[] = [
       db.exec('CREATE INDEX IF NOT EXISTS idx_agents_workspace_role ON agents(workspace_id, role)');
       console.log('[Migration 015] Agent mapping states ready');
     }
+  },
+  {
+    id: '016',
+    name: 'normalize_workspace_five_mapped_agents',
+    up: (db) => {
+      console.log('[Migration 016] Normalizing workspaces to five mapped OpenClaw agents...');
+
+      const now = new Date().toISOString();
+      const workspaces = db.prepare('SELECT id FROM workspaces').all() as { id: string }[];
+
+      const targetAgents = [
+        { name: 'Master Planner', role: 'planner', avatar: '🧭', gatewayAgentId: 'master-planner', sessionKeyPrefix: 'agent:master-planner:', isMaster: 1 },
+        { name: 'Backend Engineer', role: 'backend-engineer', avatar: '🛠️', gatewayAgentId: 'backend-engineer', sessionKeyPrefix: 'agent:backend-engineer:', isMaster: 0 },
+        { name: 'Frontend Engineer', role: 'frontend-engineer', avatar: '🎨', gatewayAgentId: 'frontend-engineer', sessionKeyPrefix: 'agent:frontend-engineer:', isMaster: 0 },
+        { name: 'Tester', role: 'tester', avatar: '🧪', gatewayAgentId: 'tester', sessionKeyPrefix: 'agent:tester:', isMaster: 0 },
+        { name: 'Reviewer', role: 'reviewer', avatar: '🔍', gatewayAgentId: 'reviewer', sessionKeyPrefix: 'agent:reviewer:', isMaster: 0 },
+      ];
+
+      const selectExisting = db.prepare(`
+        SELECT id
+        FROM agents
+        WHERE workspace_id = ?
+          AND (
+            gateway_agent_id = ?
+            OR lower(role) = lower(?)
+            OR lower(name) = lower(?)
+          )
+        ORDER BY CASE WHEN gateway_agent_id = ? THEN 0 ELSE 1 END, created_at ASC
+        LIMIT 1
+      `);
+
+      const updateAgent = db.prepare(`
+        UPDATE agents
+        SET name = ?,
+            role = ?,
+            avatar_emoji = ?,
+            source = 'gateway',
+            gateway_agent_id = ?,
+            session_key_prefix = ?,
+            mapping_status = 'mapped',
+            mapping_error = NULL,
+            is_master = ?,
+            status = CASE WHEN status = 'offline' THEN 'standby' ELSE status END,
+            updated_at = ?
+        WHERE id = ?
+      `);
+
+      const insertAgent = db.prepare(`
+        INSERT INTO agents (
+          id, name, role, description, avatar_emoji, status, is_master, workspace_id,
+          source, gateway_agent_id, session_key_prefix, mapping_status, mapping_error,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 'standby', ?, ?, 'gateway', ?, ?, 'mapped', NULL, ?, ?)
+      `);
+
+      for (const workspace of workspaces) {
+        for (const target of targetAgents) {
+          const existing = selectExisting.get(
+            workspace.id,
+            target.gatewayAgentId,
+            target.role,
+            target.name,
+            target.gatewayAgentId,
+          ) as { id: string } | undefined;
+
+          if (existing?.id) {
+            updateAgent.run(
+              target.name,
+              target.role,
+              target.avatar,
+              target.gatewayAgentId,
+              target.sessionKeyPrefix,
+              target.isMaster,
+              now,
+              existing.id,
+            );
+          } else {
+            insertAgent.run(
+              crypto.randomUUID(),
+              target.name,
+              target.role,
+              `${target.name} — auto-mapped OpenClaw agent`,
+              target.avatar,
+              target.isMaster,
+              workspace.id,
+              target.gatewayAgentId,
+              target.sessionKeyPrefix,
+              now,
+              now,
+            );
+          }
+        }
+      }
+
+      // Keep planner as the canonical master in each workspace
+      db.exec(`
+        UPDATE agents
+        SET is_master = CASE WHEN role = 'planner' THEN 1 ELSE 0 END,
+            updated_at = datetime('now')
+        WHERE workspace_id IN (SELECT id FROM workspaces)
+          AND role IN ('planner', 'backend-engineer', 'frontend-engineer', 'tester', 'reviewer')
+      `);
+
+      console.log('[Migration 016] Five mapped agents ensured for all workspaces');
+    }
   }
 ];
 
