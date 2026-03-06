@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Save, Trash2, Link2 } from 'lucide-react';
+import { X, Save, Trash2, Link2, Send } from 'lucide-react';
 import { useMissionControl } from '@/lib/store';
 import type { Agent, AgentStatus, DiscoveredAgent } from '@/lib/types';
 
@@ -22,6 +22,8 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
   const [openClawAgentsLoading, setOpenClawAgentsLoading] = useState(true);
   const [mappingNow, setMappingNow] = useState(false);
   const [mappingNotice, setMappingNotice] = useState<string | null>(null);
+  const [retryingDispatch, setRetryingDispatch] = useState(false);
+  const [dispatchNotice, setDispatchNotice] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     name: agent?.name || '',
@@ -38,6 +40,7 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
     source: agent?.source || 'local',
     mapping_status: agent?.mapping_status || (agent?.gateway_agent_id ? 'mapped' : 'unmapped'),
     mapping_error: agent?.mapping_error || '',
+    provisional_from_task_id: agent?.provisional_from_task_id || '',
   });
 
   // Load available OpenClaw agents from Gateway discovery
@@ -146,6 +149,7 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
         source: 'gateway',
         mapping_status: data.mapping_status || 'mapped',
         mapping_error: data.mapping_error || '',
+        provisional_from_task_id: data.provisional_from_task_id || prev.provisional_from_task_id,
         soul_md: data.soul_md || prev.soul_md,
         user_md: data.user_md || prev.user_md,
         agents_md: data.agents_md || prev.agents_md,
@@ -156,6 +160,29 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
       setMappingNotice('Failed to map agent');
     } finally {
       setMappingNow(false);
+    }
+  };
+
+  const handleRetryBlockedDispatch = async () => {
+    if (!form.provisional_from_task_id) return;
+
+    setRetryingDispatch(true);
+    setDispatchNotice(null);
+    try {
+      const res = await fetch(`/api/tasks/${form.provisional_from_task_id}/planning/retry-dispatch`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setDispatchNotice(data.error || data.details || 'Failed to retry dispatch');
+        return;
+      }
+      setDispatchNotice('Blocked task dispatch retried successfully.');
+    } catch (error) {
+      console.error('Failed to retry blocked dispatch:', error);
+      setDispatchNotice('Failed to retry dispatch');
+    } finally {
+      setRetryingDispatch(false);
     }
   };
 
@@ -348,6 +375,26 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
                   </button>
                   {mappingNotice && (
                     <p className="text-xs mt-2 text-mc-text-secondary">{mappingNotice}</p>
+                  )}
+
+                  {form.mapping_status === 'mapped' && form.provisional_from_task_id && (
+                    <div className="mt-3 pt-3 border-t border-mc-border">
+                      <button
+                        type="button"
+                        disabled={retryingDispatch}
+                        onClick={handleRetryBlockedDispatch}
+                        className="min-h-11 inline-flex items-center gap-2 px-3 py-2 bg-green-500/15 border border-green-500/30 text-green-300 rounded text-sm hover:bg-green-500/25 disabled:opacity-50"
+                      >
+                        <Send className="w-4 h-4" />
+                        {retryingDispatch ? 'Retrying dispatch...' : 'Retry blocked task dispatch'}
+                      </button>
+                      <p className="text-[11px] mt-1 text-mc-text-secondary">
+                        Task: {form.provisional_from_task_id}
+                      </p>
+                      {dispatchNotice && (
+                        <p className="text-xs mt-2 text-mc-text-secondary">{dispatchNotice}</p>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
