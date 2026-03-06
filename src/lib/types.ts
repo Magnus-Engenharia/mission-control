@@ -296,6 +296,8 @@ export interface CreateAgentRequest {
   user_md?: string;
   agents_md?: string;
   model?: string;
+  source?: AgentSource;
+  gateway_agent_id?: string;
 }
 
 export interface UpdateAgentRequest extends Partial<CreateAgentRequest> {

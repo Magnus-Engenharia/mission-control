@@ -62,8 +62,8 @@ export async function POST(request: NextRequest) {
     }
 
     run(
-      `INSERT INTO agents (id, name, role, description, avatar_emoji, is_master, workspace_id, soul_md, user_md, agents_md, model, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO agents (id, name, role, description, avatar_emoji, is_master, workspace_id, soul_md, user_md, agents_md, model, source, gateway_agent_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         body.name,
@@ -76,6 +76,8 @@ export async function POST(request: NextRequest) {
         body.user_md || null,
         body.agents_md || null,
         body.model || null,
+        body.source || (body.gateway_agent_id ? 'gateway' : 'local'),
+        body.gateway_agent_id || null,
         now,
         now,
       ]

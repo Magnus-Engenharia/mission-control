@@ -89,6 +89,14 @@ export async function PATCH(
       updates.push('model = ?');
       values.push(body.model);
     }
+    if (body.source !== undefined) {
+      updates.push('source = ?');
+      values.push(body.source);
+    }
+    if (body.gateway_agent_id !== undefined) {
+      updates.push('gateway_agent_id = ?');
+      values.push(body.gateway_agent_id);
+    }
 
     if (updates.length === 0) {
       return NextResponse.json({ error: 'No updates provided' }, { status: 400 });

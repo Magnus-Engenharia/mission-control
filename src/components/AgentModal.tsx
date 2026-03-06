@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X, Save, Trash2 } from 'lucide-react';
 import { useMissionControl } from '@/lib/store';
-import type { Agent, AgentStatus } from '@/lib/types';
+import type { Agent, AgentStatus, DiscoveredAgent } from '@/lib/types';
 
 interface AgentModalProps {
   agent?: Agent;
@@ -15,12 +15,11 @@ interface AgentModalProps {
 const EMOJI_OPTIONS = ['🤖', '🦞', '💻', '🔍', '✍️', '🎨', '📊', '🧠', '⚡', '🚀', '🎯', '🔧'];
 
 export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: AgentModalProps) {
-  const { addAgent, updateAgent, agents } = useMissionControl();
+  const { addAgent, updateAgent } = useMissionControl();
   const [activeTab, setActiveTab] = useState<'info' | 'soul' | 'user' | 'agents'>('info');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
-  const [defaultModel, setDefaultModel] = useState<string>('');
-  const [modelsLoading, setModelsLoading] = useState(true);
+  const [availableOpenClawAgents, setAvailableOpenClawAgents] = useState<DiscoveredAgent[]>([]);
+  const [openClawAgentsLoading, setOpenClawAgentsLoading] = useState(true);
 
   const [form, setForm] = useState({
     name: agent?.name || '',
@@ -33,30 +32,29 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
     user_md: agent?.user_md || '',
     agents_md: agent?.agents_md || '',
     model: agent?.model || '',
+    gateway_agent_id: agent?.gateway_agent_id || '',
+    source: agent?.source || 'local',
   });
 
-  // Load available models from OpenClaw config
+  // Load available OpenClaw agents from Gateway discovery
   useEffect(() => {
-    const loadModels = async () => {
+    const loadOpenClawAgents = async () => {
       try {
-        const res = await fetch('/api/openclaw/models');
+        const res = await fetch('/api/agents/discover');
         if (res.ok) {
           const data = await res.json();
-          setAvailableModels(data.availableModels || []);
-          setDefaultModel(data.defaultModel || '');
-          // If agent has no model set, use default
-          if (!agent?.model && data.defaultModel) {
-            setForm(prev => ({ ...prev, model: data.defaultModel }));
-          }
+          const discovered = (data.agents || []) as DiscoveredAgent[];
+          setAvailableOpenClawAgents(discovered);
         }
       } catch (error) {
-        console.error('Failed to load models:', error);
+        console.error('Failed to load OpenClaw agents:', error);
       } finally {
-        setModelsLoading(false);
+        setOpenClawAgentsLoading(false);
       }
     };
-    loadModels();
-  }, [agent]);
+    loadOpenClawAgents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agent?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,6 +69,7 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
+          source: form.gateway_agent_id ? 'gateway' : 'local',
           workspace_id: workspaceId || agent?.workspace_id || 'default',
         }),
       });
@@ -119,6 +118,8 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
     { id: 'user', label: 'USER.md' },
     { id: 'agents', label: 'AGENTS.md' },
   ] as const;
+
+  const selectedOpenClawAgent = availableOpenClawAgents.find((a) => a.id === form.gateway_agent_id);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-3 sm:p-4">
@@ -244,33 +245,43 @@ export function AgentModal({ agent, onClose, workspaceId, onAgentCreated }: Agen
                 </label>
               </div>
 
-              {/* Model Selection */}
+              {/* OpenClaw Agent Selection */}
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  Model
-                  {defaultModel && form.model === defaultModel && (
-                    <span className="ml-2 text-xs text-mc-text-secondary">(Default)</span>
-                  )}
-                </label>
-                {modelsLoading ? (
-                  <div className="text-sm text-mc-text-secondary">Loading available models...</div>
+                <label className="block text-sm font-medium mb-1">Execution Agent</label>
+                {openClawAgentsLoading ? (
+                  <div className="text-sm text-mc-text-secondary">Loading OpenClaw agents...</div>
                 ) : (
                   <select
-                    value={form.model}
-                    onChange={(e) => setForm({ ...form, model: e.target.value })}
+                    value={form.gateway_agent_id}
+                    onChange={(e) => {
+                      const gatewayAgentId = e.target.value;
+                      const selected = availableOpenClawAgents.find((a) => a.id === gatewayAgentId);
+                      setForm({
+                        ...form,
+                        gateway_agent_id: gatewayAgentId,
+                        model: selected?.model || '',
+                        source: gatewayAgentId ? 'gateway' : 'local',
+                      });
+                    }}
                     className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
                   >
-                    <option value="">-- Use Default Model --</option>
-                    {availableModels.map((model) => (
-                      <option key={model} value={model}>
-                        {model}{defaultModel === model ? ' (Default)' : ''}
+                    <option value="">-- No linked OpenClaw agent --</option>
+                    {availableOpenClawAgents.map((openclawAgent) => (
+                      <option key={openclawAgent.id} value={openclawAgent.id}>
+                        {openclawAgent.name} ({openclawAgent.model || 'no primary model'})
                       </option>
                     ))}
                   </select>
                 )}
                 <p className="text-xs text-mc-text-secondary mt-1">
-                  AI model used by this agent. Leave empty to use OpenClaw default.
+                  Uses this OpenClaw agent&apos;s primary model.
+                  {selectedOpenClawAgent?.model ? ` Current primary: ${selectedOpenClawAgent.model}.` : ''}
                 </p>
+                {!form.gateway_agent_id && form.model && (
+                  <p className="text-xs text-amber-300 mt-1">
+                    Legacy model-only configuration detected ({form.model}). Link an OpenClaw agent to migrate.
+                  </p>
+                )}
               </div>
             </div>
           )}
