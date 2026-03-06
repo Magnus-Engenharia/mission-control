@@ -1,6 +1,7 @@
 // Core types for Mission Control
 
 export type AgentStatus = 'standby' | 'working' | 'offline';
+export type AgentMappingStatus = 'mapped' | 'unmapped' | 'failed';
 
 export type TaskStatus = 'pending_dispatch' | 'planning' | 'inbox' | 'assigned' | 'in_progress' | 'testing' | 'review' | 'verification' | 'done';
 
@@ -20,7 +21,7 @@ export type EventType =
   | 'agent_joined'
   | 'system';
 
-export type AgentSource = 'local' | 'gateway';
+export type AgentSource = 'local' | 'gateway' | 'provisional';
 
 export interface Agent {
   id: string;
@@ -29,6 +30,9 @@ export interface Agent {
   description?: string;
   avatar_emoji: string;
   status: AgentStatus;
+  mapping_status?: AgentMappingStatus;
+  mapping_error?: string;
+  provisional_from_task_id?: string;
   is_master: boolean;
   workspace_id: string;
   soul_md?: string;
@@ -298,10 +302,14 @@ export interface CreateAgentRequest {
   model?: string;
   source?: AgentSource;
   gateway_agent_id?: string;
+  mapping_status?: AgentMappingStatus;
+  mapping_error?: string;
+  provisional_from_task_id?: string;
 }
 
 export interface UpdateAgentRequest extends Partial<CreateAgentRequest> {
   status?: AgentStatus;
+  hydrate_from_openclaw?: boolean;
 }
 
 export interface CreateTaskRequest {

@@ -24,38 +24,71 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
   const db = getDb();
   let dispatchError: string | null = null;
   let firstAgentId: string | null = null;
+  let firstDispatchableAgentId: string | null = null;
 
   // Transaction 1: Save planning data, create agents, AND assign agent to task
   // (Assigning before dispatch fixes the chicken-and-egg bug where dispatch
   // checks assigned_agent_id and fails because it wasn't set yet)
   const transaction = db.transaction(() => {
     const allowDynamicAgents = process.env.ALLOW_DYNAMIC_AGENTS !== 'false';
+    const workspace = db.prepare('SELECT workspace_id FROM tasks WHERE id = ?').get(taskId) as { workspace_id: string } | undefined;
+    const workspaceId = workspace?.workspace_id;
 
-    if (allowDynamicAgents && parsed.agents && parsed.agents.length > 0) {
-      const insertAgent = db.prepare(`
-        INSERT INTO agents (id, workspace_id, name, role, description, avatar_emoji, status, soul_md, created_at, updated_at)
-        VALUES (?, (SELECT workspace_id FROM tasks WHERE id = ?), ?, ?, ?, ?, 'standby', ?, datetime('now'), datetime('now'))
+    if (parsed.agents && parsed.agents.length > 0 && workspaceId) {
+      const findMappedByRole = db.prepare(`
+        SELECT id, mapping_status
+        FROM agents
+        WHERE workspace_id = ?
+          AND lower(role) = lower(?)
+          AND mapping_status = 'mapped'
+        ORDER BY created_at ASC
+        LIMIT 1
       `);
 
-      for (const agent of parsed.agents) {
-        const agentId = crypto.randomUUID();
-        if (!firstAgentId) firstAgentId = agentId;
+      const insertProvisional = db.prepare(`
+        INSERT INTO agents (
+          id, workspace_id, name, role, description, avatar_emoji, status, source,
+          mapping_status, mapping_error, provisional_from_task_id, soul_md, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, 'offline', 'provisional', 'failed', ?, ?, ?, datetime('now'), datetime('now'))
+      `);
 
-        insertAgent.run(
-          agentId,
+      for (const plannedAgent of parsed.agents) {
+        const mapped = findMappedByRole.get(workspaceId, plannedAgent.role) as { id: string; mapping_status: string } | undefined;
+
+        if (mapped?.id) {
+          if (!firstAgentId) firstAgentId = mapped.id;
+          if (!firstDispatchableAgentId) firstDispatchableAgentId = mapped.id;
+          continue;
+        }
+
+        if (!allowDynamicAgents) {
+          continue;
+        }
+
+        const provisionalId = crypto.randomUUID();
+        if (!firstAgentId) firstAgentId = provisionalId;
+
+        const role = plannedAgent.role || 'unmapped';
+        insertProvisional.run(
+          provisionalId,
+          workspaceId,
+          plannedAgent.name || `${role} (unmapped)`,
+          role,
+          plannedAgent.instructions || 'Planned agent created in failed state pending manual OpenClaw mapping.',
+          plannedAgent.avatar_emoji || '⚠️',
+          `Unmapped planned role "${role}". Map this board agent to an OpenClaw agent to activate.`,
           taskId,
-          agent.name,
-          agent.role,
-          agent.instructions || '',
-          agent.avatar_emoji || '🤖',
-          agent.soul_md || ''
+          plannedAgent.soul_md || ''
         );
       }
     } else if (!allowDynamicAgents && parsed.agents && parsed.agents.length > 0) {
       console.log(`[Planning Poll] Dynamic agent generation disabled (ALLOW_DYNAMIC_AGENTS=false), skipping creation of ${parsed.agents.length} agent(s)`);
     }
 
-    // Save planning data + assign the first agent + mark complete in one atomic step
+    const taskStatus = firstAgentId ? 'assigned' : 'inbox';
+
+    // Save planning data + assign first planned/mapped agent + mark complete in one atomic step
     db.prepare(`
       UPDATE tasks
       SET planning_messages = ?,
@@ -63,7 +96,7 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
           planning_agents = ?,
           planning_complete = 1,
           assigned_agent_id = ?,
-          status = 'assigned',
+          status = ?,
           planning_dispatch_error = NULL,
           updated_at = datetime('now')
       WHERE id = ?
@@ -72,6 +105,7 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
       JSON.stringify(parsed.spec),
       JSON.stringify(parsed.agents),
       firstAgentId,
+      taskStatus,
       taskId
     );
 
@@ -80,8 +114,12 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
 
   firstAgentId = transaction();
 
+  if (firstAgentId && !firstDispatchableAgentId) {
+    dispatchError = 'Planned agent was created in failed state (unmapped). Map it to an OpenClaw agent before dispatch.';
+  }
+
   // Re-check for other orchestrators before dispatching
-  if (firstAgentId) {
+  if (firstDispatchableAgentId) {
     const task = queryOne<{ workspace_id: string }>('SELECT workspace_id FROM tasks WHERE id = ?', [taskId]);
     if (task) {
       const defaultMaster = queryOne<{ id: string }>(
@@ -100,14 +138,14 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
       if (otherOrchestrators.length > 0) {
         dispatchError = `Cannot auto-dispatch: ${otherOrchestrators.length} other orchestrator(s) available in workspace`;
         console.warn(`[Planning Poll] ${dispatchError}:`, otherOrchestrators.map(o => o.name).join(', '));
-        firstAgentId = null;
+        firstDispatchableAgentId = null;
       }
     }
   }
 
   // Idempotency check
   let skipDispatch = false;
-  if (firstAgentId) {
+  if (firstDispatchableAgentId) {
     const currentTask = queryOne<{ status: string }>('SELECT status FROM tasks WHERE id = ?', [taskId]);
     if (currentTask?.status === 'in_progress') {
       console.log('[Planning Poll] Task already in progress, skipping dispatch');
@@ -116,7 +154,7 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
   }
 
   // Trigger dispatch using proper URL resolution
-  if (firstAgentId && !skipDispatch) {
+  if (firstDispatchableAgentId && !skipDispatch) {
     const missionControlUrl = getMissionControlUrl();
     const dispatchUrl = `${missionControlUrl}/api/tasks/${taskId}/dispatch`;
     console.log(`[Planning Poll] Triggering dispatch: ${dispatchUrl}`);
@@ -167,7 +205,7 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
     broadcast({ type: 'task_updated', payload: updatedTask });
   }
 
-  return { firstAgentId, parsed, dispatchError };
+  return { firstAgentId, firstDispatchableAgentId, parsed, dispatchError };
 }
 
 // GET /api/tasks/[id]/planning/poll - Check for new messages from OpenClaw
@@ -254,7 +292,7 @@ export async function GET(
           if (parsed && parsed.status === 'complete') {
             // Handle completion
             console.log('[Planning Poll] Planning complete, handling...');
-            const { firstAgentId, parsed: fullParsed, dispatchError } = await handlePlanningCompletion(taskId, parsed, messages);
+            const { firstAgentId, firstDispatchableAgentId, parsed: fullParsed, dispatchError } = await handlePlanningCompletion(taskId, parsed, messages);
 
             return NextResponse.json({
               hasUpdates: true,
@@ -263,7 +301,7 @@ export async function GET(
               agents: fullParsed.agents,
               executionPlan: fullParsed.execution_plan,
               messages,
-              autoDispatched: !!firstAgentId,
+              autoDispatched: !!firstDispatchableAgentId,
               dispatchError,
             });
           }

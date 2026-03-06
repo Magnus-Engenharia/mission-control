@@ -53,6 +53,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Assigned agent not found' }, { status: 404 });
     }
 
+    if (agent.mapping_status && agent.mapping_status !== 'mapped') {
+      return NextResponse.json(
+        {
+          error: 'Assigned agent is not mapped to an OpenClaw agent',
+          mapping_status: agent.mapping_status,
+          mapping_error: agent.mapping_error || null,
+          message: 'Map this board agent to an OpenClaw agent before dispatching.',
+        },
+        { status: 409 }
+      );
+    }
+
     // Check if dispatching to the master agent while there are other orchestrators available
     if (agent.is_master) {
       // Check for other master agents in the same workspace (excluding this one)

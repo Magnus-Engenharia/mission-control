@@ -96,8 +96,8 @@ export async function POST(request: NextRequest) {
         ].join('\n');
 
         run(
-          `INSERT INTO agents (id, name, role, description, avatar_emoji, is_master, workspace_id, soul_md, user_md, agents_md, model, source, gateway_agent_id, session_key_prefix, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO agents (id, name, role, description, avatar_emoji, is_master, workspace_id, soul_md, user_md, agents_md, model, source, gateway_agent_id, session_key_prefix, mapping_status, mapping_error, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             agentReq.name,
@@ -113,6 +113,8 @@ export async function POST(request: NextRequest) {
             'gateway',
             agentReq.gateway_agent_id,
             `agent:${agentReq.gateway_agent_id}:`,
+            'mapped',
+            null,
             now,
             now,
           ]

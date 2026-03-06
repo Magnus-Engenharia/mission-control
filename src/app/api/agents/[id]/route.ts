@@ -1,9 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { queryOne, run } from '@/lib/db';
 import type { Agent, UpdateAgentRequest } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
+
+function tryRead(filePath: string): string | null {
+  try {
+    if (!fs.existsSync(filePath)) return null;
+    return fs.readFileSync(filePath, 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+function hydrateFromLocalOpenClawAgent(gatewayAgentId: string) {
+  const home = process.env.HOME || '';
+  const baseDir = path.join(home, '.openclaw', 'agents', gatewayAgentId);
+
+  if (!fs.existsSync(baseDir)) {
+    return { found: false as const, soul_md: null, user_md: null, agents_md: null };
+  }
+
+  const soul_md = tryRead(path.join(baseDir, 'SOUL.md'));
+  const user_md = tryRead(path.join(baseDir, 'USER.md'));
+  const agents_mdRaw = tryRead(path.join(baseDir, 'AGENTS.md'));
+
+  let agents_md = agents_mdRaw;
+  const skillsDir = path.join(baseDir, 'skills');
+  if (fs.existsSync(skillsDir)) {
+    const skills = fs
+      .readdirSync(skillsDir, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && fs.existsSync(path.join(skillsDir, d.name, 'SKILL.md')))
+      .map((d) => d.name)
+      .sort();
+
+    if (skills.length > 0) {
+      const skillsSection = `\n\n## Synced Skills\n${skills.map((s) => `- ${s}`).join('\n')}`;
+      agents_md = (agents_md || '# Team Roster') + skillsSection;
+    }
+  }
+
+  return { found: true as const, soul_md, user_md, agents_md };
+}
+
 // GET /api/agents/[id] - Get a single agent
 export async function GET(
   request: NextRequest,
@@ -96,6 +138,52 @@ export async function PATCH(
     if (body.gateway_agent_id !== undefined) {
       updates.push('gateway_agent_id = ?');
       values.push(body.gateway_agent_id);
+    }
+    if (body.mapping_status !== undefined) {
+      updates.push('mapping_status = ?');
+      values.push(body.mapping_status);
+    }
+    if (body.mapping_error !== undefined) {
+      updates.push('mapping_error = ?');
+      values.push(body.mapping_error);
+    }
+    if (body.provisional_from_task_id !== undefined) {
+      updates.push('provisional_from_task_id = ?');
+      values.push(body.provisional_from_task_id);
+    }
+
+    const shouldHydrate = body.hydrate_from_openclaw !== false && !!body.gateway_agent_id;
+    if (shouldHydrate && body.gateway_agent_id) {
+      const hydrated = hydrateFromLocalOpenClawAgent(body.gateway_agent_id);
+      if (hydrated.found) {
+        if (hydrated.soul_md) {
+          updates.push('soul_md = ?');
+          values.push(hydrated.soul_md);
+        }
+        if (hydrated.user_md) {
+          updates.push('user_md = ?');
+          values.push(hydrated.user_md);
+        }
+        if (hydrated.agents_md) {
+          updates.push('agents_md = ?');
+          values.push(hydrated.agents_md);
+        }
+      }
+    }
+
+    if (body.gateway_agent_id && body.mapping_status === undefined) {
+      updates.push('mapping_status = ?');
+      values.push('mapped');
+      updates.push('mapping_error = ?');
+      values.push(null);
+      if (body.source === undefined) {
+        updates.push('source = ?');
+        values.push('gateway');
+      }
+      if (existing.session_key_prefix == null) {
+        updates.push('session_key_prefix = ?');
+        values.push(`agent:${body.gateway_agent_id}:`);
+      }
     }
 
     if (updates.length === 0) {

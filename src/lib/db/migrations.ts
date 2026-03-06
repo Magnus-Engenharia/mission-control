@@ -681,6 +681,29 @@ const migrations: Migration[] = [
         console.log(`[Migration 014] Added Planner Agent to workspace ${workspace.id}`);
       }
     }
+  },
+  {
+    id: '015',
+    name: 'agent_mapping_states',
+    up: (db) => {
+      console.log('[Migration 015] Adding agent mapping state columns...');
+
+      const agentsInfo = db.prepare('PRAGMA table_info(agents)').all() as { name: string }[];
+      if (!agentsInfo.some(col => col.name === 'mapping_status')) {
+        db.exec("ALTER TABLE agents ADD COLUMN mapping_status TEXT DEFAULT 'mapped' CHECK (mapping_status IN ('mapped', 'unmapped', 'failed'))");
+      }
+      if (!agentsInfo.some(col => col.name === 'mapping_error')) {
+        db.exec('ALTER TABLE agents ADD COLUMN mapping_error TEXT');
+      }
+      if (!agentsInfo.some(col => col.name === 'provisional_from_task_id')) {
+        db.exec('ALTER TABLE agents ADD COLUMN provisional_from_task_id TEXT REFERENCES tasks(id)');
+      }
+
+      db.exec("UPDATE agents SET mapping_status = COALESCE(mapping_status, 'mapped')");
+      db.exec('CREATE INDEX IF NOT EXISTS idx_agents_mapping_status ON agents(mapping_status)');
+      db.exec('CREATE INDEX IF NOT EXISTS idx_agents_workspace_role ON agents(workspace_id, role)');
+      console.log('[Migration 015] Agent mapping states ready');
+    }
   }
 ];
 
