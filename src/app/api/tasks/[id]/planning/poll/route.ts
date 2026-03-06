@@ -22,6 +22,37 @@ if (isNaN(PLANNING_POLL_INTERVAL_MS) || PLANNING_POLL_INTERVAL_MS < 100) {
 // Helper to handle planning completion with proper error handling
 async function handlePlanningCompletion(taskId: string, parsed: any, messages: any[]) {
   const db = getDb();
+
+  const normalizeRole = (role: string | undefined): string => {
+    const r = (role || '').trim().toLowerCase();
+    if (!r) return 'unmapped';
+
+    const aliases: Record<string, string> = {
+      planner: 'planner',
+      'master-planner': 'planner',
+      orchestrator: 'planner',
+
+      backend: 'backend-engineer',
+      'backend-engineer': 'backend-engineer',
+      'back-end': 'backend-engineer',
+      builder: 'backend-engineer',
+
+      frontend: 'frontend-engineer',
+      'front-end': 'frontend-engineer',
+      'frontend-engineer': 'frontend-engineer',
+      ui: 'frontend-engineer',
+
+      tester: 'tester',
+      qa: 'tester',
+      'quality-assurance': 'tester',
+
+      reviewer: 'reviewer',
+      verifier: 'reviewer',
+      'code-reviewer': 'reviewer',
+    };
+
+    return aliases[r] || r;
+  };
   let dispatchError: string | null = null;
   let firstAgentId: string | null = null;
   let firstDispatchableAgentId: string | null = null;
@@ -54,7 +85,8 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
       `);
 
       for (const plannedAgent of parsed.agents) {
-        const mapped = findMappedByRole.get(workspaceId, plannedAgent.role) as { id: string; mapping_status: string } | undefined;
+        const normalizedRole = normalizeRole(plannedAgent.role);
+        const mapped = findMappedByRole.get(workspaceId, normalizedRole) as { id: string; mapping_status: string } | undefined;
 
         if (mapped?.id) {
           if (!firstAgentId) firstAgentId = mapped.id;
@@ -69,7 +101,7 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
         const provisionalId = crypto.randomUUID();
         if (!firstAgentId) firstAgentId = provisionalId;
 
-        const role = plannedAgent.role || 'unmapped';
+        const role = normalizedRole || 'unmapped';
         insertProvisional.run(
           provisionalId,
           workspaceId,
@@ -77,7 +109,7 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
           role,
           plannedAgent.instructions || 'Planned agent created in failed state pending manual OpenClaw mapping.',
           plannedAgent.avatar_emoji || '⚠️',
-          `Unmapped planned role "${role}". Map this board agent to an OpenClaw agent to activate.`,
+          `Unmapped planned role "${plannedAgent.role || role}" (normalized: "${role}"). Map this board agent to an OpenClaw agent to activate.`,
           taskId,
           plannedAgent.soul_md || ''
         );
