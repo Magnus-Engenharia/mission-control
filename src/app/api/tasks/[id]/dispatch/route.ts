@@ -292,8 +292,24 @@ If you need help or clarification, ask the orchestrator.`;
     // Send message to agent's session using chat.send
     try {
       // Use sessionKey for routing to the agent's session
-      // Format: {prefix}{openclaw_session_id} where prefix defaults to 'agent:main:'
-      const prefix = agent.session_key_prefix || 'agent:main:';
+      // Format: {prefix}{openclaw_session_id}. Do NOT fallback to main.
+      const normalizedAgentName = agent.name?.toLowerCase().replace(/\s+/g, '-') || '';
+      const derivedPrefix =
+        agent.gateway_agent_id ? `agent:${agent.gateway_agent_id}:` :
+        (agent.source === 'gateway' && normalizedAgentName ? `agent:${normalizedAgentName}:` : null);
+      const prefix = agent.session_key_prefix || derivedPrefix;
+      if (!prefix) {
+        return NextResponse.json(
+          { error: `Agent ${agent.name} is missing session_key_prefix; refusing dispatch to avoid main-model fallback.` },
+          { status: 400 }
+        );
+      }
+
+      // Persist auto-derived prefix for future dispatches
+      if (!agent.session_key_prefix && derivedPrefix) {
+        run('UPDATE agents SET session_key_prefix = ?, updated_at = ? WHERE id = ?', [derivedPrefix, now, agent.id]);
+      }
+
       const sessionKey = `${prefix}${session.openclaw_session_id}`;
       await client.call('chat.send', {
         sessionKey,
