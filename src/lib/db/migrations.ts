@@ -621,6 +621,66 @@ const migrations: Migration[] = [
 
       console.log('[Migration 013] Fresh start complete');
     }
+  },
+  {
+    id: '014',
+    name: 'ensure_master_planner_agent',
+    up: (db) => {
+      console.log('[Migration 014] Ensuring each workspace has a master Planner Agent...');
+
+      const workspaces = db.prepare('SELECT id FROM workspaces').all() as { id: string }[];
+      const now = new Date().toISOString();
+      const missionControlUrl = process.env.MISSION_CONTROL_URL || 'http://localhost:4000';
+
+      const sharedUserMd = `# User Context\n\n## Operating Environment\n- Platform: Autensa multi-agent task orchestration\n- API Base: ${missionControlUrl}\n- Tasks are dispatched automatically by the workflow engine\n- Communication via OpenClaw Gateway\n\n## Communication Style\n- Be concise and action-oriented\n- Report results with evidence\n- Ask for clarification only when truly needed`;
+
+      const plannerSoul = `# Planner Agent\n\nYou are the dedicated planning specialist.\n\n## Mission\nTurn ambiguous requests into clear, testable implementation plans.\n\n## Planning Protocol\n- Ask focused, high-leverage clarification questions\n- Capture constraints, scope boundaries, and non-goals\n- Produce concrete acceptance criteria\n- Define risks and edge cases early\n- Output implementation-ready structure for Builder/Tester/Reviewer\n\n## Quality Bar\nA plan is complete only when execution can start with minimal ambiguity.\nIf ambiguity remains, ask one more precise question instead of guessing.`;
+
+      const insert = db.prepare(`
+        INSERT INTO agents (
+          id, name, role, description, avatar_emoji, status, is_master, workspace_id,
+          soul_md, user_md, agents_md, source, session_key_prefix, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 'standby', 1, ?, ?, ?, ?, 'local', ?, ?, ?)
+      `);
+
+      for (const workspace of workspaces) {
+        const existingMaster = db.prepare(
+          `SELECT id, role FROM agents WHERE workspace_id = ? AND is_master = 1 ORDER BY CASE WHEN role = 'planner' THEN 0 ELSE 1 END, created_at ASC LIMIT 1`
+        ).get(workspace.id) as { id: string; role?: string } | undefined;
+
+        if (existingMaster?.role === 'planner') {
+          continue;
+        }
+
+        const plannerExists = db.prepare(
+          `SELECT id FROM agents WHERE workspace_id = ? AND role = 'planner' ORDER BY created_at ASC LIMIT 1`
+        ).get(workspace.id) as { id: string } | undefined;
+
+        if (plannerExists) {
+          db.prepare(`UPDATE agents SET is_master = 1, session_key_prefix = COALESCE(session_key_prefix, 'agent:main:'), updated_at = ? WHERE id = ?`)
+            .run(now, plannerExists.id);
+          console.log(`[Migration 014] Promoted existing planner to master for workspace ${workspace.id}`);
+          continue;
+        }
+
+        const id = crypto.randomUUID();
+        insert.run(
+          id,
+          'Planner Agent',
+          'planner',
+          'Planner Agent — dedicated planning specialist',
+          '🧭',
+          workspace.id,
+          plannerSoul,
+          sharedUserMd,
+          'Planner Agent is the default planning orchestrator for this workspace.',
+          'agent:main:',
+          now,
+          now,
+        );
+        console.log(`[Migration 014] Added Planner Agent to workspace ${workspace.id}`);
+      }
+    }
   }
 ];
 

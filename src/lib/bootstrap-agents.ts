@@ -1,7 +1,7 @@
 /**
  * Bootstrap Core Agents
  *
- * Creates the 4 core agents (Builder, Tester, Reviewer, Learner)
+ * Creates the core agents (Planner, Builder, Tester, Reviewer, Learner)
  * for a workspace if it has zero agents. Also clones workflow
  * templates from the default workspace to new workspaces.
  */
@@ -32,6 +32,9 @@ Manages overall system, sets priorities, defines tasks. Follow specifications pr
 
 const SHARED_AGENTS_MD = `# Team Roster
 
+## Planner Agent (🧭)
+Owns planning quality. Runs clarification loops, turns vague asks into clear implementation specs, and defines acceptance criteria before execution.
+
 ## Builder Agent (🛠️)
 Creates deliverables from specs. Writes code, creates files, builds projects. When work comes back from failed QA, fixes all reported issues.
 
@@ -57,9 +60,35 @@ interface AgentDef {
   role: string;
   emoji: string;
   soulMd: string;
+  isMaster?: boolean;
+  sessionKeyPrefix?: string;
 }
 
 const CORE_AGENTS: AgentDef[] = [
+  {
+    name: 'Planner Agent',
+    role: 'planner',
+    emoji: '🧭',
+    isMaster: true,
+    sessionKeyPrefix: 'agent:main:',
+    soulMd: `# Planner Agent
+
+You are the dedicated planning specialist.
+
+## Mission
+Turn ambiguous requests into clear, testable implementation plans.
+
+## Planning Protocol
+- Ask focused, high-leverage clarification questions
+- Capture constraints, scope boundaries, and non-goals
+- Produce concrete acceptance criteria
+- Define risks and edge cases early
+- Output implementation-ready structure for Builder/Tester/Reviewer
+
+## Quality Bar
+A plan is complete only when execution can start with minimal ambiguity.
+If ambiguity remains, ask one more precise question instead of guessing.`,
+  },
   {
     name: 'Builder Agent',
     role: 'builder',
@@ -206,8 +235,8 @@ export function bootstrapCoreAgentsRaw(
   const now = new Date().toISOString();
 
   const insert = db.prepare(`
-    INSERT INTO agents (id, name, role, description, avatar_emoji, status, is_master, workspace_id, soul_md, user_md, agents_md, source, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, 'standby', 0, ?, ?, ?, ?, 'local', ?, ?)
+    INSERT INTO agents (id, name, role, description, avatar_emoji, status, is_master, workspace_id, soul_md, user_md, agents_md, source, session_key_prefix, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, 'standby', ?, ?, ?, ?, ?, 'local', ?, ?, ?)
   `);
 
   for (const agent of CORE_AGENTS) {
@@ -218,10 +247,12 @@ export function bootstrapCoreAgentsRaw(
       agent.role,
       `${agent.name} — core team member`,
       agent.emoji,
+      agent.isMaster ? 1 : 0,
       workspaceId,
       agent.soulMd,
       userMd,
       SHARED_AGENTS_MD,
+      agent.sessionKeyPrefix || null,
       now,
       now,
     );
