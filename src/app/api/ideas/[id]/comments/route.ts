@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { queryAll, run } from '@/lib/db';
-import type { IdeaComment } from '@/lib/types';
+import { execFile } from 'child_process';
+import { queryAll, queryOne, run } from '@/lib/db';
+import type { Idea, IdeaComment } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 interface RouteParams { params: Promise<{ id: string }> }
@@ -18,14 +19,41 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const content = (body.content || '').trim();
     if (!content) return NextResponse.json({ error: 'content is required' }, { status: 400 });
 
+    const idea = queryOne<Idea>('SELECT * FROM ideas WHERE id = ?', [id]);
+    if (!idea) {
+      return NextResponse.json({ error: 'Idea not found' }, { status: 404 });
+    }
+
     const commentId = crypto.randomUUID();
     const now = new Date().toISOString();
+    const author = body.author || 'you';
+
     run(
       'INSERT INTO idea_comments (id, idea_id, author, content, created_at) VALUES (?, ?, ?, ?, ?)',
-      [commentId, id, body.author || 'you', content, now]
+      [commentId, id, author, content, now]
     );
 
     run('UPDATE ideas SET updated_at = ? WHERE id = ?', [now, id]);
+
+    // Add to live events feed
+    run(
+      `INSERT INTO events (id, type, task_id, message, metadata, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        crypto.randomUUID(),
+        'idea_comment_added',
+        null,
+        `Novo comentário na ideia: ${idea.title}`,
+        JSON.stringify({ idea_id: id, workspace_id: idea.workspace_id, author, content }),
+        now,
+      ]
+    );
+
+    // Wake assistant (best effort) so it can review/respond about the idea changes.
+    const text = `Mission Control: novo comentário na ideia "${idea.title}" (id: ${id}) por ${author}. Comentário: ${content}`;
+    execFile('openclaw', ['system', 'event', '--text', text, '--mode', 'now'], (err) => {
+      if (err) console.warn('[ideas] failed to emit system event:', err.message);
+    });
 
     const comments = queryAll<IdeaComment>('SELECT * FROM idea_comments WHERE idea_id = ? ORDER BY created_at ASC', [id]);
     return NextResponse.json(comments, { status: 201 });
