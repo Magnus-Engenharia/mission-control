@@ -145,6 +145,10 @@ export interface Project {
   repo_path: string;
   platform?: string;
   template?: string;
+  template_frontend_repo?: string;
+  template_backend_repo?: string;
+  template_app_repo?: string;
+  template_extra_repo?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;

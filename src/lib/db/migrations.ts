@@ -843,6 +843,29 @@ const migrations: Migration[] = [
 
       console.log('[Migration 017] Projects registry ready');
     }
+  },
+  {
+    id: '018',
+    name: 'project_template_repo_fields',
+    up: (db) => {
+      console.log('[Migration 018] Adding project template repo fields...');
+      const info = db.prepare('PRAGMA table_info(projects)').all() as { name: string }[];
+
+      if (!info.some((c) => c.name === 'template_frontend_repo')) {
+        db.exec('ALTER TABLE projects ADD COLUMN template_frontend_repo TEXT');
+      }
+      if (!info.some((c) => c.name === 'template_backend_repo')) {
+        db.exec('ALTER TABLE projects ADD COLUMN template_backend_repo TEXT');
+      }
+      if (!info.some((c) => c.name === 'template_app_repo')) {
+        db.exec('ALTER TABLE projects ADD COLUMN template_app_repo TEXT');
+      }
+      if (!info.some((c) => c.name === 'template_extra_repo')) {
+        db.exec('ALTER TABLE projects ADD COLUMN template_extra_repo TEXT');
+      }
+
+      console.log('[Migration 018] Project template repo fields ready');
+    }
   }
 ];
 

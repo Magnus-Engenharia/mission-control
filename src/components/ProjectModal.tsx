@@ -14,6 +14,10 @@ export function ProjectModal({ workspaceId, onClose }: ProjectModalProps) {
     repo_path: '',
     platform: '',
     template: '',
+    template_frontend_repo: '',
+    template_backend_repo: '',
+    template_app_repo: '',
+    template_extra_repo: '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +42,11 @@ export function ProjectModal({ workspaceId, onClose }: ProjectModalProps) {
           repo_path: form.repo_path.trim(),
           platform: form.platform.trim() || null,
           template: form.template.trim() || null,
+          template_frontend_repo: form.template_frontend_repo.trim() || null,
+          template_backend_repo: form.template_backend_repo.trim() || null,
+          template_app_repo: form.template_app_repo.trim() || null,
+          template_extra_repo: form.template_extra_repo.trim() || null,
+          bootstrap_from_templates: true,
         }),
       });
 
@@ -109,11 +118,53 @@ export function ProjectModal({ workspaceId, onClose }: ProjectModalProps) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Template (optional)</label>
+              <label className="block text-sm font-medium mb-1">Template label (optional)</label>
               <input
                 value={form.template}
                 onChange={(e) => setForm((prev) => ({ ...prev, template: e.target.value }))}
-                placeholder="ios-starter"
+                placeholder="starter-pack-v1"
+                className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-3 pt-1">
+            <p className="text-xs text-mc-text-secondary">
+              Optional GitHub template repos. If provided, we clone content into independent repos under this project folder.
+            </p>
+            <div>
+              <label className="block text-sm font-medium mb-1">Frontend template (Vue)</label>
+              <input
+                value={form.template_frontend_repo}
+                onChange={(e) => setForm((prev) => ({ ...prev, template_frontend_repo: e.target.value }))}
+                placeholder="https://github.com/your-org/vue-template"
+                className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Backend template (Rails)</label>
+              <input
+                value={form.template_backend_repo}
+                onChange={(e) => setForm((prev) => ({ ...prev, template_backend_repo: e.target.value }))}
+                placeholder="https://github.com/your-org/rails-template"
+                className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">App template</label>
+              <input
+                value={form.template_app_repo}
+                onChange={(e) => setForm((prev) => ({ ...prev, template_app_repo: e.target.value }))}
+                placeholder="https://github.com/your-org/app-template"
+                className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Extra template (optional 4th repo)</label>
+              <input
+                value={form.template_extra_repo}
+                onChange={(e) => setForm((prev) => ({ ...prev, template_extra_repo: e.target.value }))}
+                placeholder="https://github.com/your-org/extra-template"
                 className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
               />
             </div>
