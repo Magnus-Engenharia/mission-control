@@ -9,6 +9,8 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
   const [comments, setComments] = useState<IdeaComment[]>([]);
   const [commentText, setCommentText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newIdea, setNewIdea] = useState({ title: '', summary: '', tags: '', score: '' });
 
   const loadIdeas = async () => {
     setLoading(true);
@@ -66,10 +68,84 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
     }
   };
 
+  const createIdea = async () => {
+    if (!newIdea.title.trim()) return;
+    const tags = newIdea.tags
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+    const res = await fetch('/api/ideas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workspace_id: workspaceId,
+        title: newIdea.title.trim(),
+        summary: newIdea.summary.trim() || null,
+        tags,
+        score: newIdea.score ? Number(newIdea.score) : null,
+        source: 'manual-dashboard',
+      }),
+    });
+
+    if (res.ok) {
+      setShowCreate(false);
+      setNewIdea({ title: '', summary: '', tags: '', score: '' });
+      await loadIdeas();
+    }
+  };
+
   return (
     <div className="h-full flex min-w-0">
       <div className="w-[42%] min-w-[300px] border-r border-mc-border p-3 overflow-y-auto">
-        <div className="text-xs uppercase tracking-wider text-mc-text-secondary mb-3">Ideias</div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-xs uppercase tracking-wider text-mc-text-secondary">Ideias</div>
+          <button
+            onClick={() => setShowCreate((v) => !v)}
+            className="min-h-9 px-2.5 text-xs bg-mc-accent-pink text-mc-bg rounded hover:bg-mc-accent-pink/90"
+          >
+            + Nova Ideia
+          </button>
+        </div>
+
+        {showCreate && (
+          <div className="mb-3 p-2.5 border border-mc-border rounded bg-mc-bg-secondary space-y-2">
+            <input
+              value={newIdea.title}
+              onChange={(e) => setNewIdea((p) => ({ ...p, title: e.target.value }))}
+              placeholder="Título da ideia"
+              className="w-full min-h-10 bg-mc-bg border border-mc-border rounded px-2 text-sm"
+            />
+            <textarea
+              value={newIdea.summary}
+              onChange={(e) => setNewIdea((p) => ({ ...p, summary: e.target.value }))}
+              placeholder="Resumo (opcional)"
+              className="w-full min-h-16 bg-mc-bg border border-mc-border rounded px-2 py-1.5 text-sm"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                value={newIdea.tags}
+                onChange={(e) => setNewIdea((p) => ({ ...p, tags: e.target.value }))}
+                placeholder="tags separadas por vírgula"
+                className="w-full min-h-10 bg-mc-bg border border-mc-border rounded px-2 text-sm"
+              />
+              <input
+                value={newIdea.score}
+                onChange={(e) => setNewIdea((p) => ({ ...p, score: e.target.value }))}
+                placeholder="score (0-10)"
+                className="w-full min-h-10 bg-mc-bg border border-mc-border rounded px-2 text-sm"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowCreate(false)} className="min-h-10 px-3 text-xs border border-mc-border rounded">
+                Cancelar
+              </button>
+              <button onClick={createIdea} className="min-h-10 px-3 text-xs bg-mc-accent text-mc-bg rounded">
+                Salvar Ideia
+              </button>
+            </div>
+          </div>
+        )}
         {loading && <div className="text-sm text-mc-text-secondary">Carregando...</div>}
         {!loading && ideas.length === 0 && (
           <div className="text-sm text-mc-text-secondary">Nenhuma ideia ainda.</div>
