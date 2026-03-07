@@ -900,6 +900,66 @@ const migrations: Migration[] = [
       db.exec('CREATE INDEX IF NOT EXISTS idx_idea_comments_idea ON idea_comments(idea_id)');
       console.log('[Migration 019] Ideas tables ready');
     }
+  },
+  {
+    id: '020',
+    name: 'normalize_default_workflow_templates',
+    up: (db) => {
+      console.log('[Migration 020] Normalizing default workflow templates...');
+
+      const now = new Date().toISOString();
+      const updateTemplate = db.prepare(`
+        UPDATE workflow_templates
+        SET name = ?, description = ?, stages = ?, fail_targets = ?, is_default = ?, updated_at = ?
+        WHERE id = ?
+      `);
+
+      updateTemplate.run(
+        'Simple',
+        'Builder only — for quick, straightforward tasks',
+        JSON.stringify([
+          { id: 'build', label: 'Build', role: 'builder', status: 'in_progress' },
+          { id: 'done', label: 'Done', role: null, status: 'done' },
+        ]),
+        JSON.stringify({}),
+        0,
+        now,
+        'tpl-simple'
+      );
+
+      updateTemplate.run(
+        'Standard',
+        'Builder → Tester → Reviewer — for most projects',
+        JSON.stringify([
+          { id: 'build', label: 'Build', role: 'builder', status: 'in_progress' },
+          { id: 'test', label: 'Test', role: 'tester', status: 'testing' },
+          { id: 'review', label: 'Review', role: 'reviewer', status: 'review' },
+          { id: 'done', label: 'Done', role: null, status: 'done' },
+        ]),
+        JSON.stringify({ testing: 'in_progress', review: 'in_progress' }),
+        0,
+        now,
+        'tpl-standard'
+      );
+
+      updateTemplate.run(
+        'Strict',
+        'Builder → Tester → Review Queue → Reviewer Verify — for critical projects',
+        JSON.stringify([
+          { id: 'build', label: 'Build', role: 'builder', status: 'in_progress' },
+          { id: 'test', label: 'Test', role: 'tester', status: 'testing' },
+          { id: 'review', label: 'Review', role: null, status: 'review' },
+          { id: 'verify', label: 'Verify', role: 'reviewer', status: 'verification' },
+          { id: 'done', label: 'Done', role: null, status: 'done' },
+        ]),
+        JSON.stringify({ testing: 'in_progress', review: 'in_progress', verification: 'in_progress' }),
+        1,
+        now,
+        'tpl-strict'
+      );
+
+      console.log('[Migration 020] Default templates normalized');
+    }
   }
 ];
 
