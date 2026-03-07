@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, ChevronRight, GripVertical, ArrowRightLeft, Lightbulb } from 'lucide-react';
+import { Plus, ChevronRight, GripVertical, ArrowRightLeft, Lightbulb, X } from 'lucide-react';
 import { useMissionControl } from '@/lib/store';
 import { triggerAutoDispatch, shouldTriggerAutoDispatch } from '@/lib/auto-dispatch';
 import type { Task, TaskStatus } from '@/lib/types';
@@ -214,8 +214,21 @@ export function MissionQueue({ workspaceId, mobileMode = false, isPortrait = tru
       {showCreateModal && <TaskModal onClose={() => setShowCreateModal(false)} workspaceId={workspaceId} />}
       {editingTask && <TaskModal task={editingTask} onClose={() => setEditingTask(null)} workspaceId={workspaceId} />}
       {showIdeasModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 p-4 flex items-center justify-center" onClick={() => setShowIdeasModal(false)}>
-          <div className="w-full max-w-6xl h-[92vh] bg-mc-bg border border-mc-border rounded-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-black/60 p-4 flex items-center justify-center transition-opacity duration-150" onClick={() => setShowIdeasModal(false)}>
+          <div
+            className="w-full max-w-6xl h-[92vh] bg-mc-bg border border-mc-border rounded-xl overflow-hidden transition-all duration-200 ease-out"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-2 border-b border-mc-border">
+              <div className="text-sm text-mc-text-secondary">Nova Ideia</div>
+              <button
+                onClick={() => setShowIdeasModal(false)}
+                className="w-8 h-8 rounded-lg bg-mc-bg-secondary hover:bg-mc-bg-tertiary border border-mc-border flex items-center justify-center"
+                title="Fechar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
             <IdeasPanel workspaceId={workspaceId || 'default'} scope="dashboard" />
           </div>
         </div>
