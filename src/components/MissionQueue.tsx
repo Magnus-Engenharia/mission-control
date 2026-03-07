@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, ChevronRight, GripVertical, ArrowRightLeft } from 'lucide-react';
+import { Plus, ChevronRight, GripVertical, ArrowRightLeft, FolderPlus } from 'lucide-react';
 import { useMissionControl } from '@/lib/store';
 import { triggerAutoDispatch, shouldTriggerAutoDispatch } from '@/lib/auto-dispatch';
 import type { Task, TaskStatus } from '@/lib/types';
 import { TaskModal } from './TaskModal';
+import { ProjectModal } from './ProjectModal';
 import { formatDistanceToNow } from 'date-fns';
 
 interface MissionQueueProps {
@@ -28,6 +29,7 @@ const COLUMNS: { id: TaskStatus; label: string; color: string }[] = [
 export function MissionQueue({ workspaceId, mobileMode = false, isPortrait = true }: MissionQueueProps) {
   const { tasks, updateTaskStatus, addEvent } = useMissionControl();
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showProjectModal, setShowProjectModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [mobileStatus, setMobileStatus] = useState<TaskStatus>('planning');
@@ -109,13 +111,22 @@ export function MissionQueue({ workspaceId, mobileMode = false, isPortrait = tru
           <ChevronRight className="w-4 h-4 text-mc-text-secondary" />
           <span className="text-sm font-medium uppercase tracking-wider">Mission Queue</span>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-4 min-h-11 bg-mc-accent-pink text-mc-bg rounded text-sm font-medium hover:bg-mc-accent-pink/90"
-        >
-          <Plus className="w-4 h-4" />
-          New Task
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowProjectModal(true)}
+            className="flex items-center gap-2 px-3 min-h-11 bg-mc-bg border border-mc-border text-mc-text rounded text-sm font-medium hover:bg-mc-bg-tertiary"
+          >
+            <FolderPlus className="w-4 h-4" />
+            New Project
+          </button>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 px-4 min-h-11 bg-mc-accent-pink text-mc-bg rounded text-sm font-medium hover:bg-mc-accent-pink/90"
+          >
+            <Plus className="w-4 h-4" />
+            New Task
+          </button>
+        </div>
       </div>
 
       {!mobileMode ? (
@@ -198,6 +209,7 @@ export function MissionQueue({ workspaceId, mobileMode = false, isPortrait = tru
       )}
 
       {showCreateModal && <TaskModal onClose={() => setShowCreateModal(false)} workspaceId={workspaceId} />}
+      {showProjectModal && <ProjectModal onClose={() => setShowProjectModal(false)} workspaceId={workspaceId} />}
       {editingTask && <TaskModal task={editingTask} onClose={() => setEditingTask(null)} workspaceId={workspaceId} />}
 
       {mobileMode && statusMoveTask && (
