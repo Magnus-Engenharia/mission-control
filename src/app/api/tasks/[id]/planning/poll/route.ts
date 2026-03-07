@@ -23,6 +23,13 @@ if (isNaN(PLANNING_POLL_INTERVAL_MS) || PLANNING_POLL_INTERVAL_MS < 100) {
 async function handlePlanningCompletion(taskId: string, parsed: any, messages: any[]) {
   const db = getDb();
 
+  const taskMeta = queryOne<{ title?: string; description?: string; workspace_id?: string }>(
+    'SELECT title, description, workspace_id FROM tasks WHERE id = ?',
+    [taskId]
+  );
+  const taskText = `${taskMeta?.title || ''} ${taskMeta?.description || ''}`.toLowerCase();
+  const mobileIntent = /(\bios\b|\biphone\b|\bipad\b|\bswift\b|\bswiftui\b|\bmobile\b|\bandroid\b|react native|flutter)/i.test(taskText);
+
   const normalizeRole = (role: string | undefined): string => {
     const r = (role || '').trim().toLowerCase();
     if (!r) return 'unmapped';
@@ -41,6 +48,10 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
       'front-end': 'frontend-engineer',
       'frontend-engineer': 'frontend-engineer',
       ui: 'frontend-engineer',
+
+      mobile: 'mobile-engineer',
+      'mobile-engineer': 'mobile-engineer',
+      ios: 'mobile-engineer',
 
       tester: 'tester',
       qa: 'tester',
@@ -76,6 +87,25 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
         LIMIT 1
       `);
 
+      const findMappedMobile = db.prepare(`
+        SELECT id
+        FROM agents
+        WHERE workspace_id = ?
+          AND mapping_status = 'mapped'
+          AND (lower(role) = 'mobile-engineer' OR lower(name) = 'mobile-engineer')
+        ORDER BY created_at ASC
+        LIMIT 1
+      `);
+
+      const resolveRoleForTask = (normalizedRole: string): string => {
+        if (!mobileIntent) return normalizedRole;
+        if (normalizedRole === 'backend-engineer' || normalizedRole === 'frontend-engineer') {
+          const mobile = findMappedMobile.get(workspaceId) as { id: string } | undefined;
+          if (mobile?.id) return 'mobile-engineer';
+        }
+        return normalizedRole;
+      };
+
       const insertProvisional = db.prepare(`
         INSERT INTO agents (
           id, workspace_id, name, role, description, avatar_emoji, status, source,
@@ -86,7 +116,8 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
 
       for (const plannedAgent of parsed.agents) {
         const normalizedRole = normalizeRole(plannedAgent.role);
-        const mapped = findMappedByRole.get(workspaceId, normalizedRole) as { id: string; mapping_status: string } | undefined;
+        const effectiveRole = resolveRoleForTask(normalizedRole);
+        const mapped = findMappedByRole.get(workspaceId, effectiveRole) as { id: string; mapping_status: string } | undefined;
 
         if (mapped?.id) {
           if (!firstAgentId) firstAgentId = mapped.id;
@@ -101,7 +132,7 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
         const provisionalId = crypto.randomUUID();
         if (!firstAgentId) firstAgentId = provisionalId;
 
-        const role = normalizedRole || 'unmapped';
+        const role = effectiveRole || normalizedRole || 'unmapped';
         insertProvisional.run(
           provisionalId,
           workspaceId,
