@@ -48,12 +48,23 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
     const wsId = workspaceId || task?.workspace_id || 'default';
     fetch(`/api/projects?workspace_id=${encodeURIComponent(wsId)}`)
       .then((res) => res.ok ? res.json() : [])
-      .then((data) => setProjects(Array.isArray(data) ? data : []))
+      .then((data) => {
+        const list = Array.isArray(data) ? data : [];
+        setProjects(list);
+
+        // Dashboard-per-project mode: default new/edit forms to a concrete project
+        setForm((prev) => {
+          if (prev.project_id) return prev;
+          if (task?.project_id) return { ...prev, project_id: task.project_id };
+          if (list.length > 0) return { ...prev, project_id: list[0].id };
+          return prev;
+        });
+      })
       .catch((err) => {
         console.error('Failed to load projects:', err);
         setProjects([]);
       });
-  }, [workspaceId, task?.workspace_id]);
+  }, [workspaceId, task?.workspace_id, task?.project_id]);
 
   const resolveStatus = (): TaskStatus => {
     // Planning mode overrides everything
@@ -81,11 +92,16 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
       const method = task ? 'PATCH' : 'POST';
       const resolvedStatus = resolveStatus();
 
+      if (!form.project_id) {
+        setSaveError('Select a project for this dashboard before saving the task.');
+        return;
+      }
+
       const payload = {
         ...form,
         status: resolvedStatus,
         assigned_agent_id: form.assigned_agent_id || null,
-        project_id: form.project_id || null,
+        project_id: form.project_id,
         due_date: form.due_date || null,
         workspace_id: workspaceId || task?.workspace_id || 'default',
       };
@@ -332,14 +348,19 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
               value={form.project_id}
               onChange={(e) => setForm({ ...form, project_id: e.target.value })}
               className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
+              required
             >
-              <option value="">No project (legacy pathing)</option>
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.name} — {project.repo_path}
                 </option>
               ))}
             </select>
+            {projects.length === 0 && (
+              <p className="mt-1 text-xs text-mc-accent-yellow">
+                No project found in this dashboard yet.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
