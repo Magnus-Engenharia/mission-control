@@ -343,7 +343,10 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
             workspace_id: workspace.id,
             name: name.trim(),
             repo_path: `/Users/magnuseng/Projects/${projectSlug || name.trim()}`,
-            bootstrap_from_templates: false,
+            template_frontend_repo: 'git@github.com:Magnus-Engenharia/VueTemplate.git',
+            template_backend_repo: 'git@github.com:Magnus-Engenharia/RailsTemplate.git',
+            template_ios_repo: 'git@github.com:Magnus-Engenharia/AppTemplate.git',
+            bootstrap_from_templates: true,
           }),
         });
 
