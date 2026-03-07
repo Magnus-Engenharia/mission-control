@@ -51,8 +51,25 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Wake assistant (best effort) so it can review/respond about the idea changes.
     const text = `Mission Control: novo comentário na ideia "${idea.title}" (id: ${id}) por ${author}. Comentário: ${content}. Contexto da ideia: ${idea.summary || 'sem resumo'}. Faça avaliação cruzando comentário + ideia e responda ao Magnus com recomendação (ajustar ou manter).`;
-    execFile('openclaw', ['system', 'event', '--text', text, '--mode', 'now'], (err) => {
-      if (err) console.warn('[ideas] failed to emit system event:', err.message);
+    const openclawBin = process.env.OPENCLAW_BIN || '/opt/homebrew/bin/openclaw';
+    execFile(openclawBin, ['system', 'event', '--text', text, '--mode', 'now'], (err) => {
+      if (err) {
+        console.warn('[ideas] failed to emit system event:', err.message);
+        try {
+          run(
+            `INSERT INTO events (id, type, task_id, message, metadata, created_at)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [
+              crypto.randomUUID(),
+              'idea_review_wake_failed',
+              null,
+              `Falha ao acordar assistente para ideia: ${idea.title}`,
+              JSON.stringify({ idea_id: id, error: err.message }),
+              new Date().toISOString(),
+            ]
+          );
+        } catch {}
+      }
     });
 
     const comments = queryAll<IdeaComment>('SELECT * FROM idea_comments WHERE idea_id = ? ORDER BY created_at ASC', [id]);
