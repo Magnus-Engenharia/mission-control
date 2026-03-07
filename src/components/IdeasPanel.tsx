@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Idea, IdeaComment, Project } from '@/lib/types';
 
-export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }) {
+export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard' }: { workspaceId?: string; scope?: 'dashboard' | 'global' }) {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [selected, setSelected] = useState<Idea | null>(null);
   const [comments, setComments] = useState<IdeaComment[]>([]);
@@ -16,7 +16,7 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
   const loadIdeas = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/ideas?workspace_id=${workspaceId}`);
+      const res = await fetch(`/api/ideas?workspace_id=${workspaceId}&scope=${scope}`);
       if (res.ok) {
         const data = await res.json();
         setIdeas(Array.isArray(data) ? data : []);
@@ -57,6 +57,10 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
   }, [selected?.id]);
 
   useEffect(() => {
+    if (scope === 'global') {
+      if (newIdea.project_id) setNewIdea((prev) => ({ ...prev, project_id: '' }));
+      return;
+    }
     if (newIdea.project_id && !projects.some((p) => p.id === newIdea.project_id)) {
       setNewIdea((prev) => ({ ...prev, project_id: '' }));
     }
@@ -135,7 +139,7 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
         score: newIdea.score ? Number(newIdea.score) : null,
         source: 'manual-dashboard',
         project_id: newIdea.project_id || null,
-        is_new_project: newIdea.isNewDashboard,
+        is_new_project: scope === 'global' ? true : newIdea.isNewDashboard,
       }),
     });
 
@@ -173,17 +177,19 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
               placeholder="Resumo (opcional)"
               className="w-full min-h-16 bg-mc-bg border border-mc-border rounded px-2 py-1.5 text-sm"
             />
-            <div className="flex items-center gap-2">
-              <input
-                id="idea-new-dashboard"
-                type="checkbox"
-                checked={newIdea.isNewDashboard}
-                onChange={(e) => setNewIdea((prev) => ({ ...prev, isNewDashboard: e.target.checked, project_id: e.target.checked ? '' : prev.project_id }))}
-              />
-              <label htmlFor="idea-new-dashboard" className="text-sm">Ideia para novo dashboard</label>
-            </div>
+            {scope === 'dashboard' ? (
+              <div className="flex items-center gap-2">
+                <input
+                  id="idea-new-dashboard"
+                  type="checkbox"
+                  checked={newIdea.isNewDashboard}
+                  onChange={(e) => setNewIdea((prev) => ({ ...prev, isNewDashboard: e.target.checked, project_id: e.target.checked ? '' : prev.project_id }))}
+                />
+                <label htmlFor="idea-new-dashboard" className="text-sm">Ideia para novo dashboard</label>
+              </div>
+            ) : null}
 
-            {!newIdea.isNewDashboard && (
+            {scope === 'dashboard' && !newIdea.isNewDashboard && (
               <div className="space-y-1">
                 <label className="text-xs text-mc-text-secondary">Vincular a qual projeto desse dashboard?</label>
                 <select

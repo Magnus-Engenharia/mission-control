@@ -171,7 +171,7 @@ export function WorkspaceDashboard() {
             </select>
           </div>
           <div className="h-[560px] border border-mc-border rounded-xl overflow-hidden bg-mc-bg-secondary">
-            <IdeasPanel workspaceId={ideasWorkspaceId} />
+            <IdeasPanel workspaceId={ideasWorkspaceId} scope="global" />
           </div>
         </section>
       </main>

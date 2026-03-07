@@ -7,6 +7,7 @@ import { ChevronLeft, ListTodo, Users, Activity, Settings as SettingsIcon, Exter
 import { Header } from '@/components/Header';
 import { AgentsSidebar } from '@/components/AgentsSidebar';
 import { MissionQueue } from '@/components/MissionQueue';
+import { IdeasPanel } from '@/components/IdeasPanel';
 import { LiveFeed } from '@/components/LiveFeed';
 import { SSEDebugPanel } from '@/components/SSEDebugPanel';
 import { useMissionControl } from '@/lib/store';
@@ -212,6 +213,9 @@ export default function WorkspacePage() {
         <AgentsSidebar workspaceId={workspace.id} />
         <MissionQueue workspaceId={workspace.id} />
         <LiveFeed />
+        <div className="w-[360px] shrink-0 border-l border-mc-border">
+          <IdeasPanel workspaceId={workspace.id} scope="dashboard" />
+        </div>
       </div>
 
       <div
