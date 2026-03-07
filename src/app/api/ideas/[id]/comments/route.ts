@@ -33,6 +33,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       [commentId, id, author, content, now]
     );
 
+    // Auto-reply from Sophie after user comments (except when Sophie herself comments)
+    if ((author || '').toLowerCase() !== 'sophie') {
+      const autoReply = 'Recebi seu comentário ✅ Vou analisar esta ideia e te responder com proposta de ajuste (ou manter como está) em seguida.';
+      run(
+        'INSERT INTO idea_comments (id, idea_id, author, content, created_at) VALUES (?, ?, ?, ?, ?)',
+        [crypto.randomUUID(), id, 'Sophie', autoReply, new Date().toISOString()]
+      );
+    }
+
     run('UPDATE ideas SET updated_at = ? WHERE id = ?', [now, id]);
 
     // Add to live events feed
