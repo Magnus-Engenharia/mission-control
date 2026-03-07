@@ -8,19 +8,93 @@ interface ProjectModalProps {
   onClose: () => void;
 }
 
+type RepoPick = 'none' | 'default' | 'custom';
+
+const TEMPLATE_DEFAULTS = {
+  frontend: 'https://github.com/Magnus-Engenharia/VueTemplate',
+  backend: 'https://github.com/Magnus-Engenharia/RailsTemplate',
+  ios: 'https://github.com/Magnus-Engenharia/AppTemplate',
+};
+
+function RepoSelector({
+  label,
+  pick,
+  customValue,
+  defaultUrl,
+  onPick,
+  onCustomChange,
+}: {
+  label: string;
+  pick: RepoPick;
+  customValue: string;
+  defaultUrl?: string;
+  onPick: (pick: RepoPick) => void;
+  onCustomChange: (value: string) => void;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-1">{label}</label>
+      <select
+        value={pick}
+        onChange={(e) => onPick(e.target.value as RepoPick)}
+        className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
+      >
+        <option value="none">None (skip)</option>
+        {defaultUrl && <option value="default">Use org template</option>}
+        <option value="custom">Custom GitHub repo URL</option>
+      </select>
+
+      {pick === 'default' && defaultUrl && (
+        <p className="text-xs text-mc-text-secondary mt-1 break-all">{defaultUrl}</p>
+      )}
+
+      {pick === 'custom' && (
+        <input
+          value={customValue}
+          onChange={(e) => onCustomChange(e.target.value)}
+          placeholder="https://github.com/your-org/your-template"
+          className="mt-2 w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
+        />
+      )}
+    </div>
+  );
+}
+
 export function ProjectModal({ workspaceId, onClose }: ProjectModalProps) {
   const [form, setForm] = useState({
     name: '',
     repo_path: '',
     platform: '',
     template: '',
-    template_frontend_repo: '',
-    template_backend_repo: '',
-    template_ios_repo: '',
-    template_android_repo: '',
   });
+
+  const [repoMode, setRepoMode] = useState({
+    frontend: 'default' as RepoPick,
+    backend: 'default' as RepoPick,
+    ios: 'default' as RepoPick,
+    android: 'none' as RepoPick,
+  });
+
+  const [customRepo, setCustomRepo] = useState({
+    frontend: '',
+    backend: '',
+    ios: '',
+    android: '',
+  });
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const resolveRepo = (kind: 'frontend' | 'backend' | 'ios' | 'android') => {
+    const mode = repoMode[kind];
+    if (mode === 'none') return null;
+    if (mode === 'custom') return customRepo[kind].trim() || null;
+    if (mode === 'default') {
+      if (kind === 'android') return null;
+      return TEMPLATE_DEFAULTS[kind].trim() || null;
+    }
+    return null;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +102,16 @@ export function ProjectModal({ workspaceId, onClose }: ProjectModalProps) {
 
     if (!form.name.trim() || !form.repo_path.trim()) {
       setError('Name and repository path are required.');
+      return;
+    }
+
+    if (
+      (repoMode.frontend === 'custom' && !customRepo.frontend.trim()) ||
+      (repoMode.backend === 'custom' && !customRepo.backend.trim()) ||
+      (repoMode.ios === 'custom' && !customRepo.ios.trim()) ||
+      (repoMode.android === 'custom' && !customRepo.android.trim())
+    ) {
+      setError('Please provide custom URL for every template set to Custom.');
       return;
     }
 
@@ -42,10 +126,10 @@ export function ProjectModal({ workspaceId, onClose }: ProjectModalProps) {
           repo_path: form.repo_path.trim(),
           platform: form.platform.trim() || null,
           template: form.template.trim() || null,
-          template_frontend_repo: form.template_frontend_repo.trim() || null,
-          template_backend_repo: form.template_backend_repo.trim() || null,
-          template_ios_repo: form.template_ios_repo.trim() || null,
-          template_android_repo: form.template_android_repo.trim() || null,
+          template_frontend_repo: resolveRepo('frontend'),
+          template_backend_repo: resolveRepo('backend'),
+          template_ios_repo: resolveRepo('ios'),
+          template_android_repo: resolveRepo('android'),
           bootstrap_from_templates: true,
         }),
       });
@@ -67,7 +151,7 @@ export function ProjectModal({ workspaceId, onClose }: ProjectModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-      <div className="w-full max-w-lg bg-mc-bg-secondary border border-mc-border rounded-lg shadow-2xl">
+      <div className="w-full max-w-2xl bg-mc-bg-secondary border border-mc-border rounded-lg shadow-2xl">
         <div className="p-4 border-b border-mc-border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FolderPlus className="w-5 h-5 text-mc-accent" />
@@ -101,7 +185,7 @@ export function ProjectModal({ workspaceId, onClose }: ProjectModalProps) {
             <input
               value={form.repo_path}
               onChange={(e) => setForm((prev) => ({ ...prev, repo_path: e.target.value }))}
-              placeholder="/Users/magnuseng/Projects/mission-control"
+              placeholder="/Users/magnuseng/Projects/my-new-project"
               className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
               required
             />
@@ -130,44 +214,43 @@ export function ProjectModal({ workspaceId, onClose }: ProjectModalProps) {
 
           <div className="space-y-3 pt-1">
             <p className="text-xs text-mc-text-secondary">
-              Optional GitHub template repos. If provided, we clone content into independent repos under this project folder.
+              Select template repos per stack. Project scaffolding copies template code into new independent repos (templates are never modified).
             </p>
-            <div>
-              <label className="block text-sm font-medium mb-1">Frontend template (Vue)</label>
-              <input
-                value={form.template_frontend_repo}
-                onChange={(e) => setForm((prev) => ({ ...prev, template_frontend_repo: e.target.value }))}
-                placeholder="https://github.com/your-org/vue-template"
-                className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Backend template (Rails)</label>
-              <input
-                value={form.template_backend_repo}
-                onChange={(e) => setForm((prev) => ({ ...prev, template_backend_repo: e.target.value }))}
-                placeholder="https://github.com/your-org/rails-template"
-                className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">iOS template repo</label>
-              <input
-                value={form.template_ios_repo}
-                onChange={(e) => setForm((prev) => ({ ...prev, template_ios_repo: e.target.value }))}
-                placeholder="https://github.com/your-org/ios-template"
-                className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Android template repo</label>
-              <input
-                value={form.template_android_repo}
-                onChange={(e) => setForm((prev) => ({ ...prev, template_android_repo: e.target.value }))}
-                placeholder="https://github.com/your-org/android-template"
-                className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
-              />
-            </div>
+
+            <RepoSelector
+              label="Frontend repo (Vue)"
+              pick={repoMode.frontend}
+              customValue={customRepo.frontend}
+              defaultUrl={TEMPLATE_DEFAULTS.frontend}
+              onPick={(pick) => setRepoMode((p) => ({ ...p, frontend: pick }))}
+              onCustomChange={(value) => setCustomRepo((p) => ({ ...p, frontend: value }))}
+            />
+
+            <RepoSelector
+              label="Backend repo (Rails)"
+              pick={repoMode.backend}
+              customValue={customRepo.backend}
+              defaultUrl={TEMPLATE_DEFAULTS.backend}
+              onPick={(pick) => setRepoMode((p) => ({ ...p, backend: pick }))}
+              onCustomChange={(value) => setCustomRepo((p) => ({ ...p, backend: value }))}
+            />
+
+            <RepoSelector
+              label="iOS repo"
+              pick={repoMode.ios}
+              customValue={customRepo.ios}
+              defaultUrl={TEMPLATE_DEFAULTS.ios}
+              onPick={(pick) => setRepoMode((p) => ({ ...p, ios: pick }))}
+              onCustomChange={(value) => setCustomRepo((p) => ({ ...p, ios: value }))}
+            />
+
+            <RepoSelector
+              label="Android repo"
+              pick={repoMode.android}
+              customValue={customRepo.android}
+              onPick={(pick) => setRepoMode((p) => ({ ...p, android: pick }))}
+              onCustomChange={(value) => setCustomRepo((p) => ({ ...p, android: value }))}
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
