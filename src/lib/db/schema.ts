@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   created_by_agent_id TEXT REFERENCES agents(id),
   workspace_id TEXT DEFAULT 'default' REFERENCES workspaces(id),
   project_id TEXT REFERENCES projects(id),
+  stack_context TEXT,
   business_id TEXT DEFAULT 'default',
   due_date TEXT,
   workflow_template_id TEXT REFERENCES workflow_templates(id),

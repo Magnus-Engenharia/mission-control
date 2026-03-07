@@ -134,6 +134,9 @@ export async function POST(
     const planningPrefix = (defaultMaster?.session_key_prefix || DEFAULT_SESSION_KEY_PREFIX) + 'planning:';
     const sessionKey = `${planningPrefix}${taskId}`;
 
+    const planningText = `${task.title} ${task.description || ''}`.toLowerCase();
+    const stackAlreadyDefined = /(\bios\b|\bandroid\b|\bflutter\b|\breact native\b|\bvue\b|\brails\b|\bnext\.?(js)?\b|\bnode\b|\bsupabase\b|\bfirebase\b|\bpython\b|\bdjango\b|\bfastapi\b)/i.test(planningText);
+
     // Build the initial planning prompt
     const planningPrompt = `PLANNING REQUEST
 
@@ -146,6 +149,8 @@ Follow the planning protocol in PLANNING.md (repo root) and apply these rules:
 - Stop asking once the task is sufficiently specified for execution.
 - Final plan must use canonical roles only: planner, backend-engineer, frontend-engineer, tester, reviewer, learner (optional).
 - Do NOT use legacy role aliases in outputs (builder, verifier, orchestrator, qa).
+- If stack/tecnologia já estiver definida no contexto, NÃO pergunte sobre stack novamente; avance para as próximas clarificações relevantes.
+${stackAlreadyDefined ? '- Stack já identificada no contexto desta task: NÃO faça pergunta de stack.' : ''}
 
 Generate your FIRST question now.
 
