@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { Idea, IdeaComment } from '@/lib/types';
+import type { Idea, IdeaComment, Project } from '@/lib/types';
 
 export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }) {
   const [ideas, setIdeas] = useState<Idea[]>([]);
@@ -10,7 +10,8 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
   const [commentText, setCommentText] = useState('');
   const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const [newIdea, setNewIdea] = useState({ title: '', summary: '', tags: '', score: '', isNewDashboard: false });
+  const [newIdea, setNewIdea] = useState({ title: '', summary: '', tags: '', score: '', isNewDashboard: false, project_id: '' });
+  const [projects, setProjects] = useState<Project[]>([]);
 
   const loadIdeas = async () => {
     setLoading(true);
@@ -33,8 +34,19 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
     }
   };
 
+  const loadProjects = async () => {
+    const res = await fetch(`/api/projects?workspace_id=${workspaceId}`);
+    if (res.ok) {
+      const data = await res.json();
+      setProjects(Array.isArray(data) ? data : []);
+    } else {
+      setProjects([]);
+    }
+  };
+
   useEffect(() => {
     loadIdeas();
+    loadProjects();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId]);
 
@@ -43,6 +55,12 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
     loadComments(selected.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.id]);
+
+  useEffect(() => {
+    if (newIdea.project_id && !projects.some((p) => p.id === newIdea.project_id)) {
+      setNewIdea((prev) => ({ ...prev, project_id: '' }));
+    }
+  }, [projects, newIdea.project_id]);
 
   const selectedTags = useMemo(() => {
     if (!selected?.tags_json) return [] as string[];
@@ -116,13 +134,14 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
         tags,
         score: newIdea.score ? Number(newIdea.score) : null,
         source: 'manual-dashboard',
+        project_id: newIdea.project_id || null,
         is_new_project: newIdea.isNewDashboard,
       }),
     });
 
     if (res.ok) {
       setShowCreate(false);
-      setNewIdea({ title: '', summary: '', tags: '', score: '', isNewDashboard: false });
+      setNewIdea({ title: '', summary: '', tags: '', score: '', isNewDashboard: false, project_id: '' });
       await loadIdeas();
     }
   };
@@ -159,10 +178,28 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
                 id="idea-new-dashboard"
                 type="checkbox"
                 checked={newIdea.isNewDashboard}
-                onChange={(e) => setNewIdea((prev) => ({ ...prev, isNewDashboard: e.target.checked }))}
+                onChange={(e) => setNewIdea((prev) => ({ ...prev, isNewDashboard: e.target.checked, project_id: e.target.checked ? '' : prev.project_id }))}
               />
               <label htmlFor="idea-new-dashboard" className="text-sm">Ideia para novo dashboard</label>
             </div>
+
+            {!newIdea.isNewDashboard && (
+              <div className="space-y-1">
+                <label className="text-xs text-mc-text-secondary">Vincular a qual projeto desse dashboard?</label>
+                <select
+                  value={newIdea.project_id}
+                  onChange={(e) => setNewIdea((p) => ({ ...p, project_id: e.target.value }))}
+                  className="w-full min-h-10 bg-mc-bg border border-mc-border rounded px-2 text-sm"
+                >
+                  <option value="">Projetos do dashboard selecionado (opcional)</option>
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-2">
               <input
