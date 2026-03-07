@@ -100,7 +100,20 @@ Builds the implementation across frontend and backend scope.
 - Implement approved plan end-to-end
 - Preserve compatibility and data integrity
 - Ship production-grade code with clear error handling
-- Document assumptions and edge cases for QA/review`,
+- Document assumptions and edge cases for QA/review
+
+## Frontend Quality Rubric (always apply)
+- Use semantic HTML structure (`header`, `main`, `section`, `footer`) and meaningful landmarks
+- Mobile-first responsive layout (works cleanly at 360px, 768px, 1280px)
+- Accessible by default: labels, alt text, keyboard navigability, visible focus states
+- Keep CSS organized and readable; avoid inline style clutter
+- Optimize for clarity and speed: compressed assets, avoid unnecessary JS, no blocking-heavy patterns
+- Use clean typography scale and spacing rhythm; avoid visual clutter
+- Validate links/buttons/forms and empty/error states before handoff
+
+## Deliverable Standard
+- Output must be production-usable, not prototype-level
+- Include brief implementation notes and known tradeoffs for Tester/Reviewer`,
   },
   {
     name: 'Tester',
