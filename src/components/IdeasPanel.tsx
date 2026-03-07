@@ -53,6 +53,13 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
     }
   };
 
+  const requestReview = async (ideaId: string) => {
+    const res = await fetch(`/api/ideas/${ideaId}/review-request`, { method: 'POST' });
+    if (res.ok) {
+      alert('Revisão da Sophie solicitada ✅');
+    }
+  };
+
   const addComment = async () => {
     if (!selected || !commentText.trim()) return;
     const res = await fetch(`/api/ideas/${selected.id}/comments`, {
@@ -194,12 +201,18 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => createTask(selected.id)}
                 className="min-h-11 px-4 bg-mc-accent-pink text-mc-bg rounded text-sm font-medium hover:bg-mc-accent-pink/90"
               >
                 Criar Task
+              </button>
+              <button
+                onClick={() => requestReview(selected.id)}
+                className="min-h-11 px-4 bg-mc-accent text-mc-bg rounded text-sm font-medium hover:bg-mc-accent/90"
+              >
+                Pedir revisão da Sophie
               </button>
               <button
                 onClick={loadIdeas}
