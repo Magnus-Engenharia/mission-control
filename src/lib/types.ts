@@ -167,6 +167,8 @@ export interface Idea {
   summary?: string;
   source?: string;
   tags_json?: string;
+  project_id?: string | null;
+  is_new_project?: boolean;
   status: 'new' | 'reviewing' | 'accepted' | 'rejected';
   score?: number;
   created_at: string;

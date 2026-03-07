@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 // POST /api/ideas
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json() as Partial<Idea> & { tags?: string[] };
+    const body = await request.json() as Partial<Idea> & { tags?: string[]; project_id?: string; is_new_project?: boolean };
     const workspaceId = body.workspace_id || 'default';
     const title = (body.title || '').trim();
     if (!title) {
@@ -38,6 +38,8 @@ export async function POST(request: NextRequest) {
         body.summary || null,
         body.source || null,
         body.tags_json || JSON.stringify(body.tags || []),
+        body.project_id || null,
+        body.is_new_project ? 1 : 0,
         body.status || 'new',
         body.score ?? null,
         now,

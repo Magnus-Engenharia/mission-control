@@ -159,6 +159,9 @@ export async function POST(request: NextRequest) {
       template_backend_repo?: string;
       template_ios_repo?: string;
       template_android_repo?: string;
+      include_frontend?: boolean;
+      include_backend?: boolean;
+      include_mobile?: boolean;
       // Backward compatibility
       template_app_repo?: string;
       template_extra_repo?: string;
@@ -192,12 +195,17 @@ export async function POST(request: NextRequest) {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    const frontendTemplate = body.template_frontend_repo ? normalizeGitHubTemplateUrl(body.template_frontend_repo) : null;
-    const backendTemplate = body.template_backend_repo ? normalizeGitHubTemplateUrl(body.template_backend_repo) : null;
+    const includeFrontend = body.include_frontend !== false;
+    const includeBackend = body.include_backend !== false;
+    const includeMobile = body.include_mobile !== false;
+
+    const frontendTemplate = body.template_frontend_repo ? normalizeGitHubTemplateUrl(body.template_frontend_repo) : 'git@github.com:Magnus-Engenharia/VueTemplate.git';
+    const backendTemplate = body.template_backend_repo ? normalizeGitHubTemplateUrl(body.template_backend_repo) : 'git@github.com:Magnus-Engenharia/RailsTemplate.git';
     const iosTemplateRaw = body.template_ios_repo || body.template_app_repo;
+    const iosTemplate = iosTemplateRaw ? normalizeGitHubTemplateUrl(iosTemplateRaw) : 'git@github.com:Magnus-Engenharia/AppTemplate.git';
     const androidTemplateRaw = body.template_android_repo || body.template_extra_repo;
-    const iosTemplate = iosTemplateRaw ? normalizeGitHubTemplateUrl(iosTemplateRaw) : null;
     const androidTemplate = androidTemplateRaw ? normalizeGitHubTemplateUrl(androidTemplateRaw) : null;
+
 
     run(
       `INSERT INTO projects (
@@ -226,13 +234,30 @@ export async function POST(request: NextRequest) {
     const shouldBootstrap = body.bootstrap_from_templates !== false;
     if (shouldBootstrap) {
       try {
-        bootstrapProjectRepos(repoPath, [
-          { dir: 'frontend', url: frontendTemplate || '' },
-          { dir: 'backend', url: backendTemplate || '' },
-          { dir: 'ios', url: iosTemplate || '' },
-          { dir: 'android', url: androidTemplate || '' },
-        ]);
+        const stackTemplates: Array<{ dir: string; url: string }> = [];
+        if (includeFrontend) stackTemplates.push({ dir: 'apps/web', url: frontendTemplate });
+        if (includeBackend) stackTemplates.push({ dir: 'apps/api', url: backendTemplate });
+        if (includeMobile) stackTemplates.push({ dir: 'apps/mobile', url: iosTemplate });
+
+        if (stackTemplates.length === 0) {
+          throw new Error('Select at least one stack (web/backend/mobile).');
+        }
+
+        bootstrapProjectRepos(repoPath, stackTemplates);
         ensureCriticalDocs(repoPath, name);
+        const used = [
+          includeFrontend ? 'Vue (web)' : null,
+          includeBackend ? 'Rails (backend)' : null,
+          includeMobile ? 'Swift (mobile)' : null,
+        ].filter(Boolean).join(', ');
+        const directive = `## Stacks Ativadas
+- ${used}`;
+        const criticalPath = path.join(repoPath, 'PROJECT_CRITICALS.md');
+        if (fs.existsSync(criticalPath) && fs.readFileSync(criticalPath, 'utf8').indexOf('## Stacks Ativadas') === -1) {
+          fs.appendFileSync(criticalPath, `
+${directive}
+`);
+        }
       } catch (bootstrapError) {
         run('DELETE FROM projects WHERE id = ?', [id]);
         const message = bootstrapError instanceof Error ? bootstrapError.message : 'Failed to bootstrap repositories';

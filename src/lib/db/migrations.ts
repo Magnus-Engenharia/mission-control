@@ -902,6 +902,22 @@ const migrations: Migration[] = [
     }
   },
 
+
+  {
+    id: '022',
+    name: 'ideas_project_scope',
+    up: (db) => {
+      console.log('[Migration 022] Extending ideas with project scope columns');
+      const info = db.prepare("PRAGMA table_info(ideas)").all() as { name: string }[];
+      if (!info.some((c) => c.name === 'project_id')) {
+        db.exec('ALTER TABLE ideas ADD COLUMN project_id TEXT REFERENCES projects(id)');
+      }
+      if (!info.some((c) => c.name === 'is_new_project')) {
+        db.exec('ALTER TABLE ideas ADD COLUMN is_new_project INTEGER DEFAULT 0');
+      }
+      console.log('[Migration 022] ideas_project_scope ready');
+    }
+  },
   {
     id: '021',
     name: 'task_target_and_project_critical_docs',

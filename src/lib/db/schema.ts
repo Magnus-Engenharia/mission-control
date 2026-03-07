@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS ideas (
   summary TEXT,
   source TEXT,
   tags_json TEXT,
+  project_id TEXT REFERENCES projects(id),
+  is_new_project INTEGER DEFAULT 0,
   status TEXT DEFAULT 'new' CHECK (status IN ('new','reviewing','accepted','rejected')),
   score REAL,
   created_at TEXT DEFAULT (datetime('now')),

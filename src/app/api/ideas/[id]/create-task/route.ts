@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { queryOne, run } from '@/lib/db';
+import { getDb, queryOne, run } from '@/lib/db';
 import type { Idea, Task } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
-interface RouteParams { params: Promise<{ id: string }> }
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
+const slugify = (input: string) =>
+  input
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
 
 export async function POST(_request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
+    const db = getDb();
     const idea = queryOne<Idea>('SELECT * FROM ideas WHERE id = ?', [id]);
     if (!idea) return NextResponse.json({ error: 'Idea not found' }, { status: 404 });
 
@@ -15,13 +24,50 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
     const now = new Date().toISOString();
     const description = [idea.summary || '', idea.source ? `\nSource: ${idea.source}` : ''].join('').trim();
 
+    let targetWorkspaceId = idea.workspace_id;
+    let projectId: string | null = (idea as Idea).project_id || null;
+
+    if (!projectId && !((idea as Idea).is_new_project)) {
+      const existingProject = db
+        .prepare('SELECT id FROM projects WHERE workspace_id = ? ORDER BY created_at ASC LIMIT 1')
+        .get(idea.workspace_id) as { id: string } | undefined;
+      projectId = existingProject?.id || null;
+    }
+
+    if (!projectId && (idea as Idea).is_new_project) {
+      const rawName = (idea.title || 'new-project').trim() || 'new-project';
+      const dashboardSlug = slugify(rawName) || 'new-dashboard';
+      let suffix = 1;
+      let finalSlug = dashboardSlug;
+
+      while (db.prepare('SELECT id FROM workspaces WHERE slug = ?').get(finalSlug)) {
+        finalSlug = `${dashboardSlug}-${suffix++}`;
+      }
+
+      const workspaceId = crypto.randomUUID();
+      db.prepare(
+        'INSERT INTO workspaces (id, name, slug, icon, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).run(workspaceId, rawName, finalSlug, '💡', 'Created from idea', now, now);
+
+      const projectIdGenerated = crypto.randomUUID();
+      const projectSlug = slugify(rawName) || finalSlug;
+      const projectPath = `/Users/magnuseng/Projects/${projectSlug}`;
+      run(
+        `INSERT INTO projects (id, workspace_id, name, slug, repo_path, is_active, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
+        [projectIdGenerated, workspaceId, rawName, projectSlug, projectPath, now, now]
+      );
+
+      targetWorkspaceId = workspaceId;
+      projectId = projectIdGenerated;
+    }
+
     run(
-      `INSERT INTO tasks (id, title, description, status, priority, workspace_id, created_at, updated_at)
-       VALUES (?, ?, ?, 'planning', 'normal', ?, ?, ?)`,
-      [taskId, idea.title, description || null, idea.workspace_id, now, now]
+      `INSERT INTO tasks (id, title, description, status, priority, workspace_id, project_id, created_at, updated_at)
+       VALUES (?, ?, ?, 'planning', 'normal', ?, ?, ?, ?)`,
+      [taskId, idea.title, description || null, targetWorkspaceId, projectId, now, now]
     );
 
-    // Remove the idea after conversion (idea_comments are removed by FK cascade)
     run('DELETE FROM ideas WHERE id = ?', [id]);
 
     const task = queryOne<Task>('SELECT * FROM tasks WHERE id = ?', [taskId]);

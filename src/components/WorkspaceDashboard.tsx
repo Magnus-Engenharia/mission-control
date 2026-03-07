@@ -310,6 +310,9 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
   const [icon, setIcon] = useState('📁');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [includeWeb, setIncludeWeb] = useState(true);
+  const [includeBackend, setIncludeBackend] = useState(true);
+  const [includeMobile, setIncludeMobile] = useState(true);
 
   const icons = ['📁', '💼', '🏢', '🚀', '💡', '🎯', '📊', '🔧', '🌟', '🏠'];
 
@@ -343,9 +346,9 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
             workspace_id: workspace.id,
             name: name.trim(),
             repo_path: `/Users/magnuseng/Projects/${projectSlug || name.trim()}`,
-            template_frontend_repo: 'git@github.com:Magnus-Engenharia/VueTemplate.git',
-            template_backend_repo: 'git@github.com:Magnus-Engenharia/RailsTemplate.git',
-            template_ios_repo: 'git@github.com:Magnus-Engenharia/AppTemplate.git',
+            include_frontend: includeWeb,
+            include_backend: includeBackend,
+            include_mobile: includeMobile,
             bootstrap_from_templates: true,
           }),
         });
@@ -404,6 +407,24 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-medium mb-2">Plataformas para clonar</label>
+            <div className="grid grid-cols-3 gap-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={includeWeb} onChange={(e) => setIncludeWeb(e.target.checked)} />
+                <span>Web (Vue)</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={includeBackend} onChange={(e) => setIncludeBackend(e.target.checked)} />
+                <span>Backend (Rails)</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={includeMobile} onChange={(e) => setIncludeMobile(e.target.checked)} />
+                <span>Mobile (Swift)</span>
+              </label>
+            </div>
+          </div>
+
           {error && (
             <div className="text-mc-accent-red text-sm">{error}</div>
           )}
@@ -418,7 +439,7 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
             </button>
             <button
               type="submit"
-              disabled={!name.trim() || isSubmitting}
+              disabled={(!name.trim() || isSubmitting) || (!includeWeb && !includeBackend && !includeMobile)}
               className="px-6 py-2 bg-mc-accent text-mc-bg rounded-lg font-medium hover:bg-mc-accent/90 disabled:opacity-50"
             >
               {isSubmitting ? 'Creating...' : 'Create Dashboard'}

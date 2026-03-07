@@ -10,7 +10,7 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
   const [commentText, setCommentText] = useState('');
   const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const [newIdea, setNewIdea] = useState({ title: '', summary: '', tags: '', score: '' });
+  const [newIdea, setNewIdea] = useState({ title: '', summary: '', tags: '', score: '', isNewDashboard: false });
 
   const loadIdeas = async () => {
     setLoading(true);
@@ -33,11 +33,15 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
     }
   };
 
-  useEffect(() => { loadIdeas(); }, [workspaceId]);
+  useEffect(() => {
+    loadIdeas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId]);
 
   useEffect(() => {
     if (!selected) return;
     loadComments(selected.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.id]);
 
   const selectedTags = useMemo(() => {
@@ -112,12 +116,13 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
         tags,
         score: newIdea.score ? Number(newIdea.score) : null,
         source: 'manual-dashboard',
+        is_new_project: newIdea.isNewDashboard,
       }),
     });
 
     if (res.ok) {
       setShowCreate(false);
-      setNewIdea({ title: '', summary: '', tags: '', score: '' });
+      setNewIdea({ title: '', summary: '', tags: '', score: '', isNewDashboard: false });
       await loadIdeas();
     }
   };
@@ -149,6 +154,16 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
               placeholder="Resumo (opcional)"
               className="w-full min-h-16 bg-mc-bg border border-mc-border rounded px-2 py-1.5 text-sm"
             />
+            <div className="flex items-center gap-2">
+              <input
+                id="idea-new-dashboard"
+                type="checkbox"
+                checked={newIdea.isNewDashboard}
+                onChange={(e) => setNewIdea((prev) => ({ ...prev, isNewDashboard: e.target.checked }))}
+              />
+              <label htmlFor="idea-new-dashboard" className="text-sm">Ideia para novo dashboard</label>
+            </div>
+
             <div className="grid grid-cols-2 gap-2">
               <input
                 value={newIdea.tags}
