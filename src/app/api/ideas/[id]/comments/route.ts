@@ -73,6 +73,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
     });
 
+    // Fire-and-forget async review worker so the card leaves "reviewing" automatically.
+    const reviewUrl = `${request.nextUrl.origin}/api/ideas/${id}/auto-review`;
+    fetch(reviewUrl, { method: 'POST' }).catch((err) => {
+      console.warn('[ideas] auto-review trigger failed:', err?.message || err);
+    });
+
     const comments = queryAll<IdeaComment>('SELECT * FROM idea_comments WHERE idea_id = ? ORDER BY created_at ASC', [id]);
     return NextResponse.json(comments, { status: 201 });
   } catch (error) {
