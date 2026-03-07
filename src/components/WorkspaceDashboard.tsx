@@ -339,7 +339,7 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/^-|-$/g, '');
 
-        await fetch('/api/projects', {
+        const projectRes = await fetch('/api/projects', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -350,8 +350,16 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
             include_backend: includeBackend,
             include_mobile: includeMobile,
             bootstrap_from_templates: true,
+            create_github_repo: true,
           }),
         });
+
+        if (!projectRes.ok) {
+          const errorData = await projectRes.json().catch(() => ({ error: 'Failed to create project repo on GitHub' }));
+          await fetch('/api/workspaces/' + workspace.id, { method: 'DELETE' });
+          setError(errorData?.error || 'Failed to create dashboard project');
+          return;
+        }
 
         onCreated();
       } else {
