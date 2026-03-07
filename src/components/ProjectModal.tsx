@@ -16,8 +16,8 @@ export function ProjectModal({ workspaceId, onClose }: ProjectModalProps) {
     template: '',
     template_frontend_repo: '',
     template_backend_repo: '',
-    template_app_repo: '',
-    template_extra_repo: '',
+    template_ios_repo: '',
+    template_android_repo: '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,8 +44,8 @@ export function ProjectModal({ workspaceId, onClose }: ProjectModalProps) {
           template: form.template.trim() || null,
           template_frontend_repo: form.template_frontend_repo.trim() || null,
           template_backend_repo: form.template_backend_repo.trim() || null,
-          template_app_repo: form.template_app_repo.trim() || null,
-          template_extra_repo: form.template_extra_repo.trim() || null,
+          template_ios_repo: form.template_ios_repo.trim() || null,
+          template_android_repo: form.template_android_repo.trim() || null,
           bootstrap_from_templates: true,
         }),
       });
@@ -151,20 +151,20 @@ export function ProjectModal({ workspaceId, onClose }: ProjectModalProps) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">App template</label>
+              <label className="block text-sm font-medium mb-1">iOS template repo</label>
               <input
-                value={form.template_app_repo}
-                onChange={(e) => setForm((prev) => ({ ...prev, template_app_repo: e.target.value }))}
-                placeholder="https://github.com/your-org/app-template"
+                value={form.template_ios_repo}
+                onChange={(e) => setForm((prev) => ({ ...prev, template_ios_repo: e.target.value }))}
+                placeholder="https://github.com/your-org/ios-template"
                 className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Extra template (optional 4th repo)</label>
+              <label className="block text-sm font-medium mb-1">Android template repo</label>
               <input
-                value={form.template_extra_repo}
-                onChange={(e) => setForm((prev) => ({ ...prev, template_extra_repo: e.target.value }))}
-                placeholder="https://github.com/your-org/extra-template"
+                value={form.template_android_repo}
+                onChange={(e) => setForm((prev) => ({ ...prev, template_android_repo: e.target.value }))}
+                placeholder="https://github.com/your-org/android-template"
                 className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
               />
             </div>

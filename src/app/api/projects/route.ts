@@ -100,6 +100,9 @@ export async function POST(request: NextRequest) {
       template?: string;
       template_frontend_repo?: string;
       template_backend_repo?: string;
+      template_ios_repo?: string;
+      template_android_repo?: string;
+      // Backward compatibility
       template_app_repo?: string;
       template_extra_repo?: string;
       bootstrap_from_templates?: boolean;
@@ -151,8 +154,8 @@ export async function POST(request: NextRequest) {
         body.template || null,
         body.template_frontend_repo || null,
         body.template_backend_repo || null,
-        body.template_app_repo || null,
-        body.template_extra_repo || null,
+        (body.template_ios_repo || body.template_app_repo) || null,
+        (body.template_android_repo || body.template_extra_repo) || null,
         body.is_active === false ? 0 : 1,
         now,
         now,
@@ -165,8 +168,8 @@ export async function POST(request: NextRequest) {
         bootstrapProjectRepos(repoPath, [
           { dir: 'frontend', url: body.template_frontend_repo || '' },
           { dir: 'backend', url: body.template_backend_repo || '' },
-          { dir: 'app', url: body.template_app_repo || '' },
-          { dir: 'extra', url: body.template_extra_repo || '' },
+          { dir: 'ios', url: body.template_ios_repo || body.template_app_repo || '' },
+          { dir: 'android', url: body.template_android_repo || body.template_extra_repo || '' },
         ]);
       } catch (bootstrapError) {
         run('DELETE FROM projects WHERE id = ?', [id]);

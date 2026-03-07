@@ -147,8 +147,12 @@ export interface Project {
   template?: string;
   template_frontend_repo?: string;
   template_backend_repo?: string;
+  // Stored columns (legacy names)
   template_app_repo?: string;
   template_extra_repo?: string;
+  // UI/API aliases
+  template_ios_repo?: string;
+  template_android_repo?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
