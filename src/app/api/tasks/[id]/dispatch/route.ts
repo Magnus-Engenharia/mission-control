@@ -160,7 +160,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const projectDir = task.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     const fallbackTaskProjectDir = `${projectsPath}/${projectDir}`;
     const taskProjectDir = task.project_id && task.project_repo_path
-      ? `${task.project_repo_path.replace(/\/$/, '')}/work/${task.id}`
+      ? `${task.project_repo_path.replace(/\/$/, '')}`
       : fallbackTaskProjectDir;
     const missionControlUrl = getMissionControlUrl();
 
@@ -306,7 +306,7 @@ ${task.description ? `**Description:** ${task.description}\n` : ''}
 ${task.due_date ? `**Due:** ${task.due_date}\n` : ''}
 **Task ID:** ${task.id}
 ${projectContextSection}${planningSpecSection}${agentInstructionsSection}${knowledgeSection}
-${isBuilder ? `**OUTPUT DIRECTORY:** ${taskProjectDir}\nCreate this directory and save all deliverables there.\n` : `**OUTPUT DIRECTORY:** ${taskProjectDir}\n`}
+${isBuilder ? `**OUTPUT DIRECTORY:** ${taskProjectDir}\nUse this project directory as your working/output path. Create it only if it does not exist.\n` : `**OUTPUT DIRECTORY:** ${taskProjectDir}\n`}
 ${completionInstructions}
 
 If you need help or clarification, ask the orchestrator.`;
