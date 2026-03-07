@@ -73,6 +73,32 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
     });
 
+    // Temporary in-app Sophie evaluation so the card doesn't stay stuck in "reviewing".
+    // (Can be replaced later by async agent pipeline calling /sophie-response.)
+    const lower = content.toLowerCase();
+    const suggestions: string[] = [];
+
+    if (lower.includes('supabase') || lower.includes('firebase') || lower.includes('backend')) {
+      suggestions.push('Faz sentido começar com backend leve (Supabase/Firebase) para reduzir custo e manutenção no MVP.');
+    }
+    if (lower.includes('ia') || lower.includes('intelig')) {
+      suggestions.push('IA agrega valor de marketing; sugiro limitar ao recurso com maior impacto inicial (ex.: recomendações de refeições).');
+    }
+    if (lower.includes('prefer') || lower.includes('dieta')) {
+      suggestions.push('Personalização por preferências/restrições é um ótimo diferencial e deve entrar no escopo do MVP.');
+    }
+    if (suggestions.length === 0) {
+      suggestions.push('Comentário recebido e considerado. Minha recomendação: manter a ideia e refinar escopo/hipóteses de validação.');
+    }
+
+    const sophieComment = `Avaliação da Sophie: ${suggestions.join(' ')}`;
+    run(
+      'INSERT INTO idea_comments (id, idea_id, author, content, created_at) VALUES (?, ?, ?, ?, ?)',
+      [crypto.randomUUID(), id, 'Sophie', sophieComment, new Date().toISOString()]
+    );
+
+    run("UPDATE ideas SET status = 'new', updated_at = ? WHERE id = ?", [new Date().toISOString(), id]);
+
     const comments = queryAll<IdeaComment>('SELECT * FROM idea_comments WHERE idea_id = ? ORDER BY created_at ASC', [id]);
     return NextResponse.json(comments, { status: 201 });
   } catch (error) {
