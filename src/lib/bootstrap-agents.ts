@@ -103,7 +103,7 @@ Builds the implementation across frontend and backend scope.
 - Document assumptions and edge cases for QA/review
 
 ## Frontend Quality Rubric (always apply)
-- Use semantic HTML structure (`header`, `main`, `section`, `footer`) and meaningful landmarks
+- Use semantic HTML structure (header/main/section/footer) and meaningful landmarks
 - Mobile-first responsive layout (works cleanly at 360px, 768px, 1280px)
 - Accessible by default: labels, alt text, keyboard navigability, visible focus states
 - Keep CSS organized and readable; avoid inline style clutter
