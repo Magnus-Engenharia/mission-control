@@ -17,12 +17,42 @@ function slugify(input: string): string {
 
 function isValidTemplateUrl(value: string): boolean {
   if (!value) return false;
+  const v = value.trim();
+  if (/^git@github\.com:[^/]+\/[^/]+(\.git)?$/i.test(v)) return true;
   try {
-    const url = new URL(value);
-    return ['http:', 'https:'].includes(url.protocol) && url.hostname.includes('github.com');
+    const url = new URL(v);
+    return ['http:', 'https:'].includes(url.protocol) && url.hostname.toLowerCase().includes('github.com');
   } catch {
     return false;
   }
+}
+
+function normalizeGitHubTemplateUrl(value: string): string {
+  const v = value.trim();
+
+  // Already SSH
+  const sshMatch = v.match(/^git@github\.com:([^/]+)\/([^/]+?)(?:\.git)?$/i);
+  if (sshMatch) {
+    return `git@github.com:${sshMatch[1]}/${sshMatch[2]}.git`;
+  }
+
+  // HTTPS forms: /owner/repo, /owner/repo.git, /owner/repo/tree/main
+  try {
+    const url = new URL(v);
+    const isGitHub = url.hostname.toLowerCase() === 'github.com' || url.hostname.toLowerCase() === 'www.github.com';
+    if (!isGitHub) return v;
+
+    const parts = url.pathname.split('/').filter(Boolean);
+    if (parts.length >= 2) {
+      const owner = parts[0];
+      const repo = parts[1].replace(/\.git$/i, '');
+      return `git@github.com:${owner}/${repo}.git`;
+    }
+  } catch {
+    // fallthrough
+  }
+
+  return v;
 }
 
 function scaffoldFromTemplate(templateUrl: string, targetDir: string) {
@@ -51,13 +81,14 @@ function bootstrapProjectRepos(repoPath: string, templates: { dir: string; url: 
   for (const { dir, url } of templates) {
     if (!url) continue;
     if (!isValidTemplateUrl(url)) {
-      throw new Error(`Invalid template URL for ${dir}. Use full https://github.com/... URL`);
+      throw new Error(`Invalid template URL for ${dir}. Use GitHub SSH or HTTPS URL.`);
     }
+    const normalizedUrl = normalizeGitHubTemplateUrl(url);
     const target = path.join(repoPath, dir);
     if (fs.existsSync(target) && fs.readdirSync(target).length > 0) {
       throw new Error(`Target folder already exists and is not empty: ${target}`);
     }
-    scaffoldFromTemplate(url, target);
+    scaffoldFromTemplate(normalizedUrl, target);
   }
 }
 
@@ -135,6 +166,13 @@ export async function POST(request: NextRequest) {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
+    const frontendTemplate = body.template_frontend_repo ? normalizeGitHubTemplateUrl(body.template_frontend_repo) : null;
+    const backendTemplate = body.template_backend_repo ? normalizeGitHubTemplateUrl(body.template_backend_repo) : null;
+    const iosTemplateRaw = body.template_ios_repo || body.template_app_repo;
+    const androidTemplateRaw = body.template_android_repo || body.template_extra_repo;
+    const iosTemplate = iosTemplateRaw ? normalizeGitHubTemplateUrl(iosTemplateRaw) : null;
+    const androidTemplate = androidTemplateRaw ? normalizeGitHubTemplateUrl(androidTemplateRaw) : null;
+
     run(
       `INSERT INTO projects (
         id, workspace_id, name, slug, repo_path, platform, template,
@@ -149,10 +187,10 @@ export async function POST(request: NextRequest) {
         repoPath,
         body.platform || null,
         body.template || null,
-        body.template_frontend_repo || null,
-        body.template_backend_repo || null,
-        (body.template_ios_repo || body.template_app_repo) || null,
-        (body.template_android_repo || body.template_extra_repo) || null,
+        frontendTemplate,
+        backendTemplate,
+        iosTemplate,
+        androidTemplate,
         body.is_active === false ? 0 : 1,
         now,
         now,
@@ -163,10 +201,10 @@ export async function POST(request: NextRequest) {
     if (shouldBootstrap) {
       try {
         bootstrapProjectRepos(repoPath, [
-          { dir: 'frontend', url: body.template_frontend_repo || '' },
-          { dir: 'backend', url: body.template_backend_repo || '' },
-          { dir: 'ios', url: body.template_ios_repo || body.template_app_repo || '' },
-          { dir: 'android', url: body.template_android_repo || body.template_extra_repo || '' },
+          { dir: 'frontend', url: frontendTemplate || '' },
+          { dir: 'backend', url: backendTemplate || '' },
+          { dir: 'ios', url: iosTemplate || '' },
+          { dir: 'android', url: androidTemplate || '' },
         ]);
       } catch (bootstrapError) {
         run('DELETE FROM projects WHERE id = ?', [id]);

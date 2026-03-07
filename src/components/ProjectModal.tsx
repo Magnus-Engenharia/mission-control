@@ -11,9 +11,9 @@ interface ProjectModalProps {
 type RepoPick = 'none' | 'default' | 'custom';
 
 const TEMPLATE_DEFAULTS = {
-  frontend: 'https://github.com/Magnus-Engenharia/VueTemplate',
-  backend: 'https://github.com/Magnus-Engenharia/RailsTemplate',
-  ios: 'https://github.com/Magnus-Engenharia/AppTemplate',
+  frontend: 'git@github.com:Magnus-Engenharia/VueTemplate.git',
+  backend: 'git@github.com:Magnus-Engenharia/RailsTemplate.git',
+  ios: 'git@github.com:Magnus-Engenharia/AppTemplate.git',
 };
 
 function RepoSelector({
@@ -52,7 +52,7 @@ function RepoSelector({
         <input
           value={customValue}
           onChange={(e) => onCustomChange(e.target.value)}
-          placeholder="https://github.com/your-org/your-template"
+          placeholder="git@github.com:your-org/your-template.git"
           className="mt-2 w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
         />
       )}
