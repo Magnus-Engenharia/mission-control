@@ -603,7 +603,7 @@ const migrations: Migration[] = [
 
       // 3. Fix Strict template: verification role → 'reviewer' (was 'verifier')
       const fixedStages = JSON.stringify([
-        { id: 'build',  label: 'Build',  role: 'backend-engineer',  status: 'in_progress' },
+        { id: 'build',  label: 'Build',  role: 'builder',  status: 'in_progress' },
         { id: 'test',   label: 'Test',   role: 'tester',   status: 'testing' },
         { id: 'review', label: 'Review', role: null,        status: 'review' },
         { id: 'verify', label: 'Verify', role: 'reviewer',  status: 'verification' },
@@ -710,7 +710,7 @@ const migrations: Migration[] = [
     id: '016',
     name: 'normalize_workspace_five_mapped_agents',
     up: (db) => {
-      console.log('[Migration 016] Normalizing workspaces to five mapped OpenClaw agents...');
+      console.log('[Migration 016] Normalizing workspaces to core mapped OpenClaw agents...');
 
       const now = new Date().toISOString();
       const workspaces = db.prepare('SELECT id FROM workspaces').all() as { id: string }[];
@@ -718,7 +718,6 @@ const migrations: Migration[] = [
       const targetAgents = [
         { name: 'Master Planner', role: 'planner', avatar: '🧭', gatewayAgentId: 'master-planner', sessionKeyPrefix: 'agent:master-planner:', isMaster: 1 },
         { name: 'Builder Engineer', role: 'builder', avatar: '🛠️', gatewayAgentId: 'backend-engineer', sessionKeyPrefix: 'agent:backend-engineer:', isMaster: 0 },
-        { name: 'Frontend Engineer', role: 'frontend-engineer', avatar: '🎨', gatewayAgentId: 'frontend-engineer', sessionKeyPrefix: 'agent:frontend-engineer:', isMaster: 0 },
         { name: 'Tester', role: 'tester', avatar: '🧪', gatewayAgentId: 'tester', sessionKeyPrefix: 'agent:tester:', isMaster: 0 },
         { name: 'Reviewer', role: 'reviewer', avatar: '🔍', gatewayAgentId: 'reviewer', sessionKeyPrefix: 'agent:reviewer:', isMaster: 0 },
       ];
@@ -805,10 +804,10 @@ const migrations: Migration[] = [
         SET is_master = CASE WHEN role = 'planner' THEN 1 ELSE 0 END,
             updated_at = datetime('now')
         WHERE workspace_id IN (SELECT id FROM workspaces)
-          AND role IN ('planner', 'builder', 'frontend-engineer', 'tester', 'reviewer')
+          AND role IN ('planner', 'builder', 'tester', 'reviewer')
       `);
 
-      console.log('[Migration 016] Five mapped agents ensured for all workspaces');
+      console.log('[Migration 016] Core mapped agents ensured for all workspaces');
     }
   },
   {

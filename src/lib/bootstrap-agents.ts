@@ -1,7 +1,7 @@
 /**
  * Bootstrap Core Agents
  *
- * Creates the core agents (Master Planner, Backend Engineer, Frontend Engineer, Tester, Reviewer)
+ * Creates the core agents (Master Planner, Builder Engineer, Tester, Reviewer)
  * for a workspace if it has zero agents. Also clones workflow
  * templates from the default workspace to new workspaces.
  */
@@ -35,11 +35,8 @@ const SHARED_AGENTS_MD = `# Team Roster
 ## Master Planner (🧭)
 Owns planning quality and dispatch readiness. Clarifies requirements and ensures each role is mapped to a real OpenClaw agent.
 
-## Backend Engineer (🛠️)
-Builds APIs, services, data changes, and reliability work.
-
-## Frontend Engineer (🎨)
-Builds user-facing flows, interactions, and performance-focused UI.
+## Builder Engineer (🛠️)
+Builds implementation across backend and frontend scope.
 
 ## Tester (🧪) — Front-End QA
 Tests the app from the user's perspective and reports reproducible pass/fail evidence.
@@ -48,9 +45,9 @@ Tests the app from the user's perspective and reports reproducible pass/fail evi
 Final quality/security gate before completion.
 
 ## How We Work Together
-Planner → Backend/Frontend → Tester → Reviewer → Done
-If Testing fails: back to relevant engineer with issues.
-If Review fails: back to relevant engineer with code issues.
+Planner → Builder → Tester → Reviewer → Done
+If Testing fails: back to Builder with issues.
+If Review fails: back to Builder with code issues.
 Review is a queue — tasks wait there until Reviewer is free.`;
 
 interface AgentDef {
@@ -90,36 +87,20 @@ A plan is complete only when execution can start with minimal ambiguity.
 If ambiguity remains, ask one more precise question instead of guessing.`,
   },
   {
-    name: 'Backend Engineer',
-    role: 'backend-engineer',
+    name: 'Builder Engineer',
+    role: 'builder',
     emoji: '🛠️',
     gatewayAgentId: 'backend-engineer',
     sessionKeyPrefix: 'agent:backend-engineer:',
-    soulMd: `# Backend Engineer
+    soulMd: `# Builder Engineer
 
-Builds APIs, services, migrations, and reliability improvements.
+Builds the implementation across frontend and backend scope.
 
 ## Core Responsibilities
-- Implement backend scope from the approved plan
+- Implement approved plan end-to-end
 - Preserve compatibility and data integrity
 - Ship production-grade code with clear error handling
 - Document assumptions and edge cases for QA/review`,
-  },
-  {
-    name: 'Frontend Engineer',
-    role: 'frontend-engineer',
-    emoji: '🎨',
-    gatewayAgentId: 'frontend-engineer',
-    sessionKeyPrefix: 'agent:frontend-engineer:',
-    soulMd: `# Frontend Engineer
-
-Builds user-facing experiences with high usability and performance.
-
-## Core Responsibilities
-- Implement UI flows from approved requirements
-- Keep interactions accessible and responsive
-- Validate visual and behavioral correctness locally
-- Provide clear handoff notes for Tester and Reviewer`,
   },
   {
     name: 'Tester',
