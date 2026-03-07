@@ -79,10 +79,9 @@ export async function PUT(
         }
       }
 
-      // Also set the primary assigned_agent_id to the primary implementation role (first role) if not set
+      // Also set the primary assigned_agent_id to builder (first role fallback) if not set
       if (roles.length > 0 && !task.assigned_agent_id) {
         const primaryRole =
-          roles.find((r: { role: string }) => r.role === 'backend-engineer') ||
           roles.find((r: { role: string }) => r.role === 'builder') ||
           roles[0];
         if (primaryRole) {

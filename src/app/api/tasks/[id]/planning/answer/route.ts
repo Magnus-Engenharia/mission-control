@@ -52,8 +52,8 @@ Rules:
 - Ask only task-specific multiple-choice questions with an "Other" option.
 - When complete, return strict JSON with status="complete".
 - In completion output, each agents[].role must be one of:
-  planner, backend-engineer, frontend-engineer, tester, reviewer, learner
-- Do NOT emit legacy aliases such as builder, verifier, orchestrator, qa.
+  planner, builder, tester, reviewer, learner
+- Do NOT emit legacy aliases such as backend-engineer, frontend-engineer, mobile-engineer, verifier, orchestrator, qa.
 - If learner is included, keep its instructions observational/support-oriented (pattern capture, lessons learned), not as primary implementer.
 
 For another question, respond with JSON:
@@ -79,7 +79,7 @@ If planning is complete, respond with JSON:
   "agents": [
     {
       "name": "Agent Name",
-      "role": "backend-engineer",
+      "role": "builder",
       "avatar_emoji": "🎯",
       "soul_md": "Agent personality...",
       "instructions": "Specific instructions..."

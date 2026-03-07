@@ -147,8 +147,8 @@ Follow the planning protocol in PLANNING.md (repo root) and apply these rules:
 - Ask focused, task-specific multiple-choice questions.
 - Include an "Other" option.
 - Stop asking once the task is sufficiently specified for execution.
-- Final plan must use canonical roles only: planner, backend-engineer, frontend-engineer, tester, reviewer, learner (optional).
-- Do NOT use legacy role aliases in outputs (builder, verifier, orchestrator, qa).
+- Final plan must use canonical roles only: planner, builder, tester, reviewer, learner (optional).
+- Do NOT use legacy role aliases in outputs (backend-engineer, frontend-engineer, mobile-engineer, verifier, orchestrator, qa).
 - If stack/tecnologia já estiver definida no contexto, NÃO pergunte sobre stack novamente; avance para as próximas clarificações relevantes.
 ${stackAlreadyDefined ? '- Stack já identificada no contexto desta task: NÃO faça pergunta de stack.' : ''}
 

@@ -25,15 +25,16 @@ When enough signal exists, return final JSON with:
 
 ## Canonical roles (allowed)
 - `planner`
-- `backend-engineer`
-- `frontend-engineer`
+- `builder`
 - `tester`
 - `reviewer`
 - `learner` (optional, observational/support)
 
 ## Disallowed role aliases in final output
 Do not output legacy/ambiguous roles such as:
-- `builder`
+- `backend-engineer`
+- `frontend-engineer`
+- `mobile-engineer`
 - `verifier`
 - `orchestrator`
 - `qa`
