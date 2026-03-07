@@ -360,9 +360,9 @@ const migrations: Migration[] = [
         `).run(
           'tpl-simple',
           'Simple',
-          'Builder only — for quick, straightforward tasks',
+          'Backend Engineer only — for quick, straightforward tasks',
           JSON.stringify([
-            { id: 'build', label: 'Build', role: 'builder', status: 'in_progress' },
+            { id: 'build', label: 'Build', role: 'backend-engineer', status: 'in_progress' },
             { id: 'done', label: 'Done', role: null, status: 'done' }
           ]),
           JSON.stringify({}),
@@ -375,9 +375,9 @@ const migrations: Migration[] = [
         `).run(
           'tpl-standard',
           'Standard',
-          'Builder → Tester → Reviewer — for most projects',
+          'Backend Engineer → Tester → Reviewer — for most projects',
           JSON.stringify([
-            { id: 'build', label: 'Build', role: 'builder', status: 'in_progress' },
+            { id: 'build', label: 'Build', role: 'backend-engineer', status: 'in_progress' },
             { id: 'test', label: 'Test', role: 'tester', status: 'testing' },
             { id: 'review', label: 'Review', role: 'reviewer', status: 'review' },
             { id: 'done', label: 'Done', role: null, status: 'done' }
@@ -392,9 +392,9 @@ const migrations: Migration[] = [
         `).run(
           'tpl-strict',
           'Strict',
-          'Builder → Tester → Verifier + Learner — for critical projects',
+          'Backend Engineer → Tester → Reviewer + Learner — for critical projects',
           JSON.stringify([
-            { id: 'build', label: 'Build', role: 'builder', status: 'in_progress' },
+            { id: 'build', label: 'Build', role: 'backend-engineer', status: 'in_progress' },
             { id: 'test', label: 'Test', role: 'tester', status: 'testing' },
             { id: 'review', label: 'Review', role: null, status: 'review' },
             { id: 'verify', label: 'Verify', role: 'verifier', status: 'verification' },
@@ -545,7 +545,7 @@ const migrations: Migration[] = [
       console.log('[Migration 012] Updating Strict workflow template...');
 
       const strictStages = JSON.stringify([
-        { id: 'build', label: 'Build', role: 'builder', status: 'in_progress' },
+        { id: 'build', label: 'Build', role: 'backend-engineer', status: 'in_progress' },
         { id: 'test', label: 'Test', role: 'tester', status: 'testing' },
         { id: 'review', label: 'Review', role: null, status: 'review' },
         { id: 'verify', label: 'Verify', role: 'verifier', status: 'verification' },
@@ -556,7 +556,7 @@ const migrations: Migration[] = [
         `UPDATE workflow_templates
          SET stages = ?, description = ?, updated_at = datetime('now')
          WHERE id = 'tpl-strict'`
-      ).run(strictStages, 'Builder → Tester → Verifier + Learner — for critical projects');
+      ).run(strictStages, 'Backend Engineer → Tester → Reviewer + Learner — for critical projects');
 
       if (updated.changes > 0) {
         console.log('[Migration 012] Strict template updated (review is now a queue)');
@@ -603,7 +603,7 @@ const migrations: Migration[] = [
 
       // 3. Fix Strict template: verification role → 'reviewer' (was 'verifier')
       const fixedStages = JSON.stringify([
-        { id: 'build',  label: 'Build',  role: 'builder',  status: 'in_progress' },
+        { id: 'build',  label: 'Build',  role: 'backend-engineer',  status: 'in_progress' },
         { id: 'test',   label: 'Test',   role: 'tester',   status: 'testing' },
         { id: 'review', label: 'Review', role: null,        status: 'review' },
         { id: 'verify', label: 'Verify', role: 'reviewer',  status: 'verification' },
@@ -611,7 +611,7 @@ const migrations: Migration[] = [
       ]);
       db.prepare(
         `UPDATE workflow_templates SET stages = ?, description = ?, updated_at = datetime('now') WHERE id = 'tpl-strict'`
-      ).run(fixedStages, 'Builder → Tester → Reviewer + Learner — for critical projects');
+      ).run(fixedStages, 'Backend Engineer → Tester → Reviewer + Learner — for critical projects');
 
       console.log('[Migration 013] Strict template is now default with reviewer role');
 
@@ -634,7 +634,7 @@ const migrations: Migration[] = [
 
       const sharedUserMd = `# User Context\n\n## Operating Environment\n- Platform: Autensa multi-agent task orchestration\n- API Base: ${missionControlUrl}\n- Tasks are dispatched automatically by the workflow engine\n- Communication via OpenClaw Gateway\n\n## Communication Style\n- Be concise and action-oriented\n- Report results with evidence\n- Ask for clarification only when truly needed`;
 
-      const plannerSoul = `# Planner Agent\n\nYou are the dedicated planning specialist.\n\n## Mission\nTurn ambiguous requests into clear, testable implementation plans.\n\n## Planning Protocol\n- Ask focused, high-leverage clarification questions\n- Capture constraints, scope boundaries, and non-goals\n- Produce concrete acceptance criteria\n- Define risks and edge cases early\n- Output implementation-ready structure for Builder/Tester/Reviewer\n\n## Quality Bar\nA plan is complete only when execution can start with minimal ambiguity.\nIf ambiguity remains, ask one more precise question instead of guessing.`;
+      const plannerSoul = `# Planner Agent\n\nYou are the dedicated planning specialist.\n\n## Mission\nTurn ambiguous requests into clear, testable implementation plans.\n\n## Planning Protocol\n- Ask focused, high-leverage clarification questions\n- Capture constraints, scope boundaries, and non-goals\n- Produce concrete acceptance criteria\n- Define risks and edge cases early\n- Output implementation-ready structure for Backend Engineer/Tester/Reviewer\n\n## Quality Bar\nA plan is complete only when execution can start with minimal ambiguity.\nIf ambiguity remains, ask one more precise question instead of guessing.`;
 
       const insert = db.prepare(`
         INSERT INTO agents (
