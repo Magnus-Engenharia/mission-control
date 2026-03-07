@@ -33,7 +33,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       [commentId, id, author, content, now]
     );
 
-    run('UPDATE ideas SET updated_at = ? WHERE id = ?', [now, id]);
+    // Mark idea as being reviewed by Sophie
+    run("UPDATE ideas SET status = 'reviewing', updated_at = ? WHERE id = ?", [now, id]);
 
     // Add to live events feed
     run(

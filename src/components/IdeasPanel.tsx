@@ -190,6 +190,11 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
                 {idea.summary && <div className="text-xs text-mc-text-secondary mt-1 line-clamp-3">{idea.summary}</div>}
                 <div className="mt-2 flex items-center gap-2 text-[11px] text-mc-text-secondary">
                   <span>Status: {idea.status}</span>
+                  {idea.status === 'reviewing' && (
+                    <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      Sophie pensando…
+                    </span>
+                  )}
                   {typeof idea.score === 'number' && <span>Score: {idea.score}</span>}
                 </div>
                 {tags.length > 0 && (
@@ -214,6 +219,11 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
               <h3 className="text-lg font-semibold">{selected.title}</h3>
               <p className="text-sm text-mc-text-secondary mt-1">{selected.summary || 'Sem resumo'}</p>
               <div className="mt-2 text-xs text-mc-text-secondary">Fonte: {selected.source || 'manual'}</div>
+              {selected.status === 'reviewing' && (
+                <div className="mt-2 inline-flex items-center px-2 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs">
+                  Sophie recebeu e está pensando…
+                </div>
+              )}
               {selectedTags.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
                   {selectedTags.map((t: string) => <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-mc-bg-tertiary border border-mc-border">#{t}</span>)}
