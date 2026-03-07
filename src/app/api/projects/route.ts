@@ -325,7 +325,7 @@ export async function POST(request: NextRequest) {
         id, workspace_id, name, slug, repo_path, platform, template,
         template_frontend_repo, template_backend_repo, template_app_repo, template_extra_repo,
         is_active, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         workspaceId,
