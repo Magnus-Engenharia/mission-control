@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, ChevronRight, GripVertical, ArrowRightLeft } from 'lucide-react';
+import { Plus, ChevronRight, GripVertical, ArrowRightLeft, Lightbulb } from 'lucide-react';
 import { useMissionControl } from '@/lib/store';
 import { triggerAutoDispatch, shouldTriggerAutoDispatch } from '@/lib/auto-dispatch';
 import type { Task, TaskStatus } from '@/lib/types';
 import { TaskModal } from './TaskModal';
+import { IdeasPanel } from './IdeasPanel';
 import { formatDistanceToNow } from 'date-fns';
 
 interface MissionQueueProps {
@@ -28,6 +29,7 @@ const COLUMNS: { id: TaskStatus; label: string; color: string }[] = [
 export function MissionQueue({ workspaceId, mobileMode = false, isPortrait = true }: MissionQueueProps) {
   const { tasks, updateTaskStatus, addEvent } = useMissionControl();
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showIdeasModal, setShowIdeasModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [mobileStatus, setMobileStatus] = useState<TaskStatus>('planning');
@@ -119,6 +121,14 @@ export function MissionQueue({ workspaceId, mobileMode = false, isPortrait = tru
             <Plus className="w-4 h-4" />
             New Task
           </button>
+          <button
+            onClick={() => setShowIdeasModal(true)}
+            className="flex items-center gap-2 px-4 min-h-11 bg-mc-accent text-mc-bg rounded text-sm font-medium hover:bg-mc-accent/90"
+            title="Nova Ideia"
+          >
+            <Lightbulb className="w-4 h-4" />
+            New Idea
+          </button>
         </div>
       </div>
 
@@ -203,6 +213,13 @@ export function MissionQueue({ workspaceId, mobileMode = false, isPortrait = tru
 
       {showCreateModal && <TaskModal onClose={() => setShowCreateModal(false)} workspaceId={workspaceId} />}
       {editingTask && <TaskModal task={editingTask} onClose={() => setEditingTask(null)} workspaceId={workspaceId} />}
+      {showIdeasModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 p-4 flex items-center justify-center" onClick={() => setShowIdeasModal(false)}>
+          <div className="w-full max-w-6xl h-[92vh] bg-mc-bg border border-mc-border rounded-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <IdeasPanel workspaceId={workspaceId || 'default'} scope="dashboard" />
+          </div>
+        </div>
+      )}
 
       {mobileMode && statusMoveTask && (
         <div className="fixed inset-0 z-50 bg-black/60 p-4 flex items-end sm:items-center sm:justify-center" onClick={() => setStatusMoveTask(null)}>

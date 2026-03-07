@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Idea, IdeaComment, Project } from '@/lib/types';
 
-export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard' }: { workspaceId?: string; scope?: 'dashboard' | 'global' }) {
+export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullHeight = false }: { workspaceId?: string; scope?: 'dashboard' | 'global'; fullHeight?: boolean }) {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [selected, setSelected] = useState<Idea | null>(null);
   const [comments, setComments] = useState<IdeaComment[]>([]);
@@ -151,7 +151,7 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard' }: { w
   };
 
   return (
-    <div className="h-full flex min-w-0">
+    <div className={`h-${fullHeight ? 'full' : 'full'} flex min-w-0${fullHeight ? '' : ''}`}>
       <div className="w-[42%] min-w-[300px] border-r border-mc-border p-3 overflow-y-auto">
         <div className="flex items-center justify-between mb-3">
           <div className="text-xs uppercase tracking-wider text-mc-text-secondary">Ideias</div>
