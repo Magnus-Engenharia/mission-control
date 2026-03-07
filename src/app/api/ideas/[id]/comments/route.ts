@@ -33,15 +33,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       [commentId, id, author, content, now]
     );
 
-    // Auto-reply from Sophie after user comments (except when Sophie herself comments)
-    if ((author || '').toLowerCase() !== 'sophie') {
-      const autoReply = 'Recebi seu comentário ✅ Vou analisar esta ideia e te responder com proposta de ajuste (ou manter como está) em seguida.';
-      run(
-        'INSERT INTO idea_comments (id, idea_id, author, content, created_at) VALUES (?, ?, ?, ?, ?)',
-        [crypto.randomUUID(), id, 'Sophie', autoReply, new Date().toISOString()]
-      );
-    }
-
     run('UPDATE ideas SET updated_at = ? WHERE id = ?', [now, id]);
 
     // Add to live events feed
@@ -59,7 +50,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
 
     // Wake assistant (best effort) so it can review/respond about the idea changes.
-    const text = `Mission Control: novo comentário na ideia "${idea.title}" (id: ${id}) por ${author}. Comentário: ${content}`;
+    const text = `Mission Control: novo comentário na ideia "${idea.title}" (id: ${id}) por ${author}. Comentário: ${content}. Contexto da ideia: ${idea.summary || 'sem resumo'}. Faça avaliação cruzando comentário + ideia e responda ao Magnus com recomendação (ajustar ou manter).`;
     execFile('openclaw', ['system', 'event', '--text', text, '--mode', 'now'], (err) => {
       if (err) console.warn('[ideas] failed to emit system event:', err.message);
     });
