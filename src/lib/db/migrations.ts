@@ -717,7 +717,7 @@ const migrations: Migration[] = [
 
       const targetAgents = [
         { name: 'Master Planner', role: 'planner', avatar: '🧭', gatewayAgentId: 'master-planner', sessionKeyPrefix: 'agent:master-planner:', isMaster: 1 },
-        { name: 'Builder Engineer', role: 'builder', avatar: '🛠️', gatewayAgentId: 'backend-engineer', sessionKeyPrefix: 'agent:backend-engineer:', isMaster: 0 },
+        { name: 'Builder Engineer', role: 'builder', avatar: '🛠️', gatewayAgentId: 'cursor', sessionKeyPrefix: 'agent:cursor:', isMaster: 0 },
         { name: 'Tester', role: 'tester', avatar: '🧪', gatewayAgentId: 'tester', sessionKeyPrefix: 'agent:tester:', isMaster: 0 },
         { name: 'Reviewer', role: 'reviewer', avatar: '🔍', gatewayAgentId: 'reviewer', sessionKeyPrefix: 'agent:reviewer:', isMaster: 0 },
       ];

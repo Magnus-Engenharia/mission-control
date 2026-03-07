@@ -90,8 +90,8 @@ If ambiguity remains, ask one more precise question instead of guessing.`,
     name: 'Builder Engineer',
     role: 'builder',
     emoji: '🛠️',
-    gatewayAgentId: 'backend-engineer',
-    sessionKeyPrefix: 'agent:backend-engineer:',
+    gatewayAgentId: 'cursor',
+    sessionKeyPrefix: 'agent:cursor:',
     soulMd: `# Builder Engineer
 
 Builds the implementation across frontend and backend scope.
