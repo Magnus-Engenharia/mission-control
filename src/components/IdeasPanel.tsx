@@ -60,6 +60,26 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
     }
   };
 
+  const discardIdea = async (ideaId: string) => {
+    const ok = window.confirm('Tem certeza que deseja descartar esta ideia? Esta ação pode ser revertida mudando o status depois.');
+    if (!ok) return;
+
+    const res = await fetch(`/api/ideas/${ideaId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'rejected' }),
+    });
+
+    if (res.ok) {
+      if (selected?.id === ideaId) {
+        const updated = await res.json();
+        setSelected(updated);
+      }
+      await loadIdeas();
+      alert('Ideia descartada.');
+    }
+  };
+
   const addComment = async () => {
     if (!selected || !commentText.trim()) return;
     const res = await fetch(`/api/ideas/${selected.id}/comments`, {
@@ -213,6 +233,12 @@ export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }
                 className="min-h-11 px-4 bg-mc-accent text-mc-bg rounded text-sm font-medium hover:bg-mc-accent/90"
               >
                 Pedir revisão da Sophie
+              </button>
+              <button
+                onClick={() => discardIdea(selected.id)}
+                className="min-h-11 px-4 bg-red-500/15 border border-red-500/30 text-red-300 rounded text-sm font-medium hover:bg-red-500/25"
+              >
+                Descartar ideia
               </button>
               <button
                 onClick={loadIdeas}
