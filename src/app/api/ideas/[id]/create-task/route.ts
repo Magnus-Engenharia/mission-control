@@ -17,11 +17,12 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
 
     run(
       `INSERT INTO tasks (id, title, description, status, priority, workspace_id, created_at, updated_at)
-       VALUES (?, ?, ?, 'inbox', 'normal', ?, ?, ?)`,
+       VALUES (?, ?, ?, 'planning', 'normal', ?, ?, ?)`,
       [taskId, idea.title, description || null, idea.workspace_id, now, now]
     );
 
-    run(`UPDATE ideas SET status = 'accepted', updated_at = ? WHERE id = ?`, [now, id]);
+    // Remove the idea after conversion (idea_comments are removed by FK cascade)
+    run('DELETE FROM ideas WHERE id = ?', [id]);
 
     const task = queryOne<Task>('SELECT * FROM tasks WHERE id = ?', [taskId]);
     return NextResponse.json(task, { status: 201 });
