@@ -111,6 +111,15 @@ Builds the implementation across frontend and backend scope.
 - Use clean typography scale and spacing rhythm; avoid visual clutter
 - Validate links/buttons/forms and empty/error states before handoff
 
+## Ruby Backend Quality Rubric (always apply)
+- Follow Rails conventions (clear models/controllers/services) and keep code idiomatic
+- Enforce strong params, auth checks, and authorization on every protected endpoint
+- Add/adjust DB constraints and indexes for integrity + performance (not only app-level validation)
+- Handle errors with consistent JSON responses and proper HTTP status codes
+- Cover critical paths with tests (request/model/policy) and keep tests deterministic
+- Prevent N+1 queries and obvious perf pitfalls on list/index endpoints
+- Make migrations reversible and safe for existing data
+
 ## Deliverable Standard
 - Output must be production-usable, not prototype-level
 - Include brief implementation notes and known tradeoffs for Tester/Reviewer`,
