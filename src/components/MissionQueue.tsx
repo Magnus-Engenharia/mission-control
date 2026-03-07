@@ -1,13 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, ChevronRight, GripVertical, ArrowRightLeft, FolderPlus, Lightbulb } from 'lucide-react';
+import { Plus, ChevronRight, GripVertical, ArrowRightLeft } from 'lucide-react';
 import { useMissionControl } from '@/lib/store';
 import { triggerAutoDispatch, shouldTriggerAutoDispatch } from '@/lib/auto-dispatch';
 import type { Task, TaskStatus } from '@/lib/types';
 import { TaskModal } from './TaskModal';
-import { ProjectModal } from './ProjectModal';
-import { IdeasPanel } from './IdeasPanel';
 import { formatDistanceToNow } from 'date-fns';
 
 interface MissionQueueProps {
@@ -30,12 +28,10 @@ const COLUMNS: { id: TaskStatus; label: string; color: string }[] = [
 export function MissionQueue({ workspaceId, mobileMode = false, isPortrait = true }: MissionQueueProps) {
   const { tasks, updateTaskStatus, addEvent } = useMissionControl();
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showProjectModal, setShowProjectModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [mobileStatus, setMobileStatus] = useState<TaskStatus>('planning');
   const [statusMoveTask, setStatusMoveTask] = useState<Task | null>(null);
-  const [viewMode, setViewMode] = useState<'queue' | 'ideas'>('queue');
 
   const getTasksByStatus = (status: TaskStatus) => tasks.filter((task) => task.status === status);
 
@@ -114,27 +110,8 @@ export function MissionQueue({ workspaceId, mobileMode = false, isPortrait = tru
           <span className="text-sm font-medium uppercase tracking-wider">Mission Queue</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="hidden sm:flex items-center rounded border border-mc-border overflow-hidden">
-            <button
-              onClick={() => setViewMode('queue')}
-              className={`px-3 min-h-11 text-sm ${viewMode === 'queue' ? 'bg-mc-accent text-mc-bg' : 'bg-mc-bg text-mc-text-secondary'}`}
-            >
-              Queue
-            </button>
-            <button
-              onClick={() => setViewMode('ideas')}
-              className={`px-3 min-h-11 text-sm inline-flex items-center gap-1 ${viewMode === 'ideas' ? 'bg-mc-accent text-mc-bg' : 'bg-mc-bg text-mc-text-secondary'}`}
-            >
-              <Lightbulb className="w-4 h-4" /> Ideias
-            </button>
-          </div>
-          <button
-            onClick={() => setShowProjectModal(true)}
-            className="flex items-center gap-2 px-3 min-h-11 bg-mc-bg border border-mc-border text-mc-text rounded text-sm font-medium hover:bg-mc-bg-tertiary"
-          >
-            <FolderPlus className="w-4 h-4" />
-            New Project
-          </button>
+
+
           <button
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 px-4 min-h-11 bg-mc-accent-pink text-mc-bg rounded text-sm font-medium hover:bg-mc-accent-pink/90"
@@ -145,11 +122,7 @@ export function MissionQueue({ workspaceId, mobileMode = false, isPortrait = tru
         </div>
       </div>
 
-      {viewMode === 'ideas' ? (
-        <div className="flex-1 overflow-hidden">
-          <IdeasPanel workspaceId={workspaceId || 'default'} />
-        </div>
-      ) : !mobileMode ? (
+      {!mobileMode ? (
         <div className="flex-1 flex gap-3 p-3 overflow-x-auto">
           {COLUMNS.map((column) => {
             const columnTasks = getTasksByStatus(column.id);
@@ -229,7 +202,6 @@ export function MissionQueue({ workspaceId, mobileMode = false, isPortrait = tru
       )}
 
       {showCreateModal && <TaskModal onClose={() => setShowCreateModal(false)} workspaceId={workspaceId} />}
-      {showProjectModal && <ProjectModal onClose={() => setShowProjectModal(false)} workspaceId={workspaceId} />}
       {editingTask && <TaskModal task={editingTask} onClose={() => setEditingTask(null)} workspaceId={workspaceId} />}
 
       {mobileMode && statusMoveTask && (

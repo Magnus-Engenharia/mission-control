@@ -1,19 +1,27 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, ArrowRight, Folder, Users, CheckSquare, Trash2, AlertTriangle, Activity } from 'lucide-react';
+import { Plus, ArrowRight, Folder, Users, CheckSquare, Trash2, AlertTriangle, Activity, Lightbulb } from 'lucide-react';
 import Link from 'next/link';
 import type { WorkspaceStats } from '@/lib/types';
+import { IdeasPanel } from './IdeasPanel';
 
 export function WorkspaceDashboard() {
   const [workspaces, setWorkspaces] = useState<WorkspaceStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [ideasWorkspaceId, setIdeasWorkspaceId] = useState<string>('default');
 
   useEffect(() => {
     loadWorkspaces();
   }, []);
+
+  useEffect(() => {
+    if (workspaces.length > 0 && !workspaces.find((w) => w.id === ideasWorkspaceId)) {
+      setIdeasWorkspaceId(workspaces[0].id);
+    }
+  }, [workspaces, ideasWorkspaceId]);
 
   const loadWorkspaces = async () => {
     setLoading(true);
@@ -93,7 +101,7 @@ export function WorkspaceDashboard() {
                 className="min-h-11 flex items-center gap-2 px-4 bg-mc-accent text-mc-bg rounded-lg font-medium hover:bg-mc-accent/90"
               >
                 <Plus className="w-4 h-4" />
-                New Workspace
+                New Dashboard
               </button>
             </div>
           </div>
@@ -103,24 +111,24 @@ export function WorkspaceDashboard() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-2">All Workspaces</h2>
+          <h2 className="text-2xl font-bold mb-2">All Dashboards</h2>
           <p className="text-mc-text-secondary">
-            Select a workspace to view its mission queue and agents
+            Select a dashboard to view its mission queue and agents
           </p>
         </div>
 
         {workspaces.length === 0 ? (
           <div className="text-center py-16">
             <Folder className="w-16 h-16 mx-auto text-mc-text-secondary mb-4" />
-            <h3 className="text-lg font-medium mb-2">No workspaces yet</h3>
+            <h3 className="text-lg font-medium mb-2">No dashboards yet</h3>
             <p className="text-mc-text-secondary mb-6">
-              Create your first workspace to get started
+              Create your first dashboard/project to get started
             </p>
             <button
               onClick={() => setShowCreateModal(true)}
               className="px-6 py-3 bg-mc-accent text-mc-bg rounded-lg font-medium hover:bg-mc-accent/90"
             >
-              Create Workspace
+              Create Dashboard
             </button>
           </div>
         ) : (
@@ -145,6 +153,27 @@ export function WorkspaceDashboard() {
             </button>
           </div>
         )}
+
+        <section className="mt-10">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Lightbulb className="w-5 h-5 text-mc-accent-yellow" />
+              <h3 className="text-xl font-semibold">Ideation Hub</h3>
+            </div>
+            <select
+              value={ideasWorkspaceId}
+              onChange={(e) => setIdeasWorkspaceId(e.target.value)}
+              className="min-h-11 bg-mc-bg border border-mc-border rounded px-3 text-sm"
+            >
+              {workspaces.map((w) => (
+                <option key={w.id} value={w.id}>{w.icon} {w.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="h-[560px] border border-mc-border rounded-xl overflow-hidden bg-mc-bg-secondary">
+            <IdeasPanel workspaceId={ideasWorkspaceId} />
+          </div>
+        </section>
       </main>
 
       {/* Create Modal */}
@@ -299,13 +328,32 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
       });
 
       if (res.ok) {
+        const workspace = await res.json();
+
+        const projectSlug = name
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '');
+
+        await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workspace_id: workspace.id,
+            name: name.trim(),
+            repo_path: `/Users/magnuseng/Projects/${projectSlug || name.trim()}`,
+            bootstrap_from_templates: false,
+          }),
+        });
+
         onCreated();
       } else {
         const data = await res.json();
-        setError(data.error || 'Failed to create workspace');
+        setError(data.error || 'Failed to create dashboard');
       }
     } catch {
-      setError('Failed to create workspace');
+      setError('Failed to create dashboard');
     } finally {
       setIsSubmitting(false);
     }
@@ -315,7 +363,7 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
     <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-3 sm:p-4">
       <div className="bg-mc-bg-secondary border border-mc-border rounded-t-xl sm:rounded-xl w-full max-w-md pb-[env(safe-area-inset-bottom)] sm:pb-0">
         <div className="p-6 border-b border-mc-border">
-          <h2 className="text-lg font-semibold">Create New Workspace</h2>
+          <h2 className="text-lg font-semibold">Create New Dashboard (Project)</h2>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -342,7 +390,7 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
 
           {/* Name input */}
           <div>
-            <label className="block text-sm font-medium mb-2">Name</label>
+            <label className="block text-sm font-medium mb-2">Dashboard / Project name</label>
             <input
               type="text"
               value={name}
@@ -370,7 +418,7 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
               disabled={!name.trim() || isSubmitting}
               className="px-6 py-2 bg-mc-accent text-mc-bg rounded-lg font-medium hover:bg-mc-accent/90 disabled:opacity-50"
             >
-              {isSubmitting ? 'Creating...' : 'Create Workspace'}
+              {isSubmitting ? 'Creating...' : 'Create Dashboard'}
             </button>
           </div>
         </form>
