@@ -76,6 +76,32 @@ function scaffoldFromTemplate(templateUrl: string, targetDir: string) {
   }
 }
 
+
+function ensureCriticalDocs(repoPath: string, projectName: string) {
+  fs.mkdirSync(repoPath, { recursive: true });
+  const docPath = path.join(repoPath, 'PROJECT_CRITICALS.md');
+  if (!fs.existsSync(docPath)) {
+    const content = `# ${projectName} — Project Criticals
+
+## Features Implementadas
+-
+
+## Contratos
+-
+
+## Decisões Técnicas
+-
+
+## Ambientes e Comandos
+-
+
+## Riscos / Pendências
+-
+`;
+    fs.writeFileSync(docPath, content, 'utf8');
+  }
+}
+
 function bootstrapProjectRepos(repoPath: string, templates: { dir: string; url: string }[]) {
   fs.mkdirSync(repoPath, { recursive: true });
   for (const { dir, url } of templates) {
@@ -206,11 +232,14 @@ export async function POST(request: NextRequest) {
           { dir: 'ios', url: iosTemplate || '' },
           { dir: 'android', url: androidTemplate || '' },
         ]);
+        ensureCriticalDocs(repoPath, name);
       } catch (bootstrapError) {
         run('DELETE FROM projects WHERE id = ?', [id]);
         const message = bootstrapError instanceof Error ? bootstrapError.message : 'Failed to bootstrap repositories';
         return NextResponse.json({ error: message }, { status: 400 });
       }
+    } else {
+      ensureCriticalDocs(repoPath, name);
     }
 
     const project = queryOne<Project>('SELECT * FROM projects WHERE id = ?', [id]);

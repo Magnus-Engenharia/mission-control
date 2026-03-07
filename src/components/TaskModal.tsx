@@ -10,7 +10,7 @@ import { SessionsList } from './SessionsList';
 import { PlanningTab } from './PlanningTab';
 import { TeamTab } from './TeamTab';
 import { AgentModal } from './AgentModal';
-import type { Task, TaskPriority, TaskStatus, Project } from '@/lib/types';
+import type { Task, TaskPriority, TaskStatus, TaskTarget, Project } from '@/lib/types';
 
 type TabType = 'overview' | 'planning' | 'team' | 'activity' | 'deliverables' | 'sessions';
 
@@ -38,6 +38,7 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
     title: task?.title || '',
     description: task?.description || '',
     priority: task?.priority || 'normal' as TaskPriority,
+    target: (task as Task).target || 'fullstack' as TaskTarget,
     status: task?.status || 'inbox' as TaskStatus,
     assigned_agent_id: task?.assigned_agent_id || '',
     project_id: task?.project_id || '',
@@ -176,6 +177,7 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
           title: '',
           description: '',
           priority: 'normal' as TaskPriority,
+          target: 'fullstack' as TaskTarget,
           status: 'inbox' as TaskStatus,
           assigned_agent_id: '',
           project_id: '',
@@ -361,6 +363,21 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
                 No project found in this dashboard yet.
               </p>
             )}
+          </div>
+
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Target</label>
+            <select
+              value={form.target}
+              onChange={(e) => setForm({ ...form, target: e.target.value as TaskTarget })}
+              className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
+            >
+              <option value="fullstack">Fullstack</option>
+              <option value="web">Web (frontend)</option>
+              <option value="api">API (backend)</option>
+              <option value="mobile">Mobile</option>
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

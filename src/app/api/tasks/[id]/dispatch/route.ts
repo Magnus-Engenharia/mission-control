@@ -159,8 +159,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const projectsPath = getProjectsPath();
     const projectDir = task.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     const fallbackTaskProjectDir = `${projectsPath}/${projectDir}`;
+    const targetSubdir = ((task as Task & { target?: string }).target === 'web') ? 'apps/web' : ((task as Task & { target?: string }).target === 'api') ? 'apps/api' : ((task as Task & { target?: string }).target === 'mobile') ? 'apps/mobile' : '';
     const taskProjectDir = task.project_id && task.project_repo_path
-      ? `${task.project_repo_path.replace(/\/$/, '')}`
+      ? `${task.project_repo_path.replace(/\/$/, '')}${targetSubdir ? `/${targetSubdir}` : ''}`
       : fallbackTaskProjectDir;
     const missionControlUrl = getMissionControlUrl();
 
@@ -303,6 +304,7 @@ Reply with: \`VERIFY_PASS: [summary]\` or \`VERIFY_FAIL: [what failed]\``;
 **Title:** ${task.title}
 ${task.description ? `**Description:** ${task.description}\n` : ''}
 **Priority:** ${task.priority.toUpperCase()}
+**Target:** ${((task as Task & { target?: string }).target || 'fullstack').toUpperCase()}
 ${task.due_date ? `**Due:** ${task.due_date}\n` : ''}
 **Task ID:** ${task.id}
 ${projectContextSection}${planningSpecSection}${agentInstructionsSection}${knowledgeSection}

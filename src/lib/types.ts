@@ -6,6 +6,7 @@ export type AgentMappingStatus = 'mapped' | 'unmapped' | 'failed';
 export type TaskStatus = 'pending_dispatch' | 'planning' | 'inbox' | 'assigned' | 'in_progress' | 'testing' | 'review' | 'verification' | 'done';
 
 export type TaskPriority = 'low' | 'normal' | 'high' | 'urgent';
+export type TaskTarget = 'fullstack' | 'web' | 'api' | 'mobile';
 
 export type MessageType = 'text' | 'system' | 'task_update' | 'file';
 
@@ -64,6 +65,7 @@ export interface Task {
   description?: string;
   status: TaskStatus;
   priority: TaskPriority;
+  target?: TaskTarget;
   assigned_agent_id: string | null;
   created_by_agent_id: string | null;
   workspace_id: string;
@@ -365,6 +367,7 @@ export interface CreateTaskRequest {
   project_id?: string | null;
   business_id?: string;
   due_date?: string;
+  target?: TaskTarget;
 }
 
 export interface UpdateTaskRequest extends Partial<CreateTaskRequest> {

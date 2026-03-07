@@ -14,6 +14,7 @@ const TaskStatus = z.enum([
 ]);
 
 const TaskPriority = z.enum(['low', 'normal', 'high', 'urgent']);
+const TaskTarget = z.enum(['fullstack', 'web', 'api', 'mobile']);
 
 const ActivityType = z.enum([
   'spawned',
@@ -31,6 +32,7 @@ export const CreateTaskSchema = z.object({
   description: z.string().max(10000, 'Description must be 10000 characters or less').optional(),
   status: TaskStatus.optional(),
   priority: TaskPriority.optional(),
+  target: TaskTarget.optional(),
   assigned_agent_id: z.string().uuid().optional().nullable(),
   created_by_agent_id: z.string().uuid().optional().nullable(),
   business_id: z.string().optional(),
@@ -44,6 +46,7 @@ export const UpdateTaskSchema = z.object({
   description: z.string().max(10000).optional(),
   status: TaskStatus.optional(),
   priority: TaskPriority.optional(),
+  target: TaskTarget.optional(),
   assigned_agent_id: z.string().uuid().optional().nullable(),
   workflow_template_id: z.string().optional().nullable(),
   project_id: z.string().uuid().optional().nullable(),

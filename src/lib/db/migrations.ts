@@ -901,6 +901,20 @@ const migrations: Migration[] = [
       console.log('[Migration 019] Ideas tables ready');
     }
   },
+
+  {
+    id: '021',
+    name: 'task_target_and_project_critical_docs',
+    up: (db) => {
+      console.log('[Migration 021] Adding tasks.target...');
+      const info = db.prepare('PRAGMA table_info(tasks)').all() as { name: string }[];
+      if (!info.some((c) => c.name === 'target')) {
+        db.exec("ALTER TABLE tasks ADD COLUMN target TEXT DEFAULT 'fullstack' CHECK (target IN ('fullstack', 'web', 'api', 'mobile'))");
+      }
+      db.exec("UPDATE tasks SET target = COALESCE(target, 'fullstack')");
+      console.log('[Migration 021] tasks.target ready');
+    }
+  },
   {
     id: '020',
     name: 'normalize_default_workflow_templates',
