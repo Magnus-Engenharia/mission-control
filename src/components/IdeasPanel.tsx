@@ -1,0 +1,162 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import type { Idea, IdeaComment } from '@/lib/types';
+
+export function IdeasPanel({ workspaceId = 'default' }: { workspaceId?: string }) {
+  const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [selected, setSelected] = useState<Idea | null>(null);
+  const [comments, setComments] = useState<IdeaComment[]>([]);
+  const [commentText, setCommentText] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const loadIdeas = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/ideas?workspace_id=${workspaceId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setIdeas(Array.isArray(data) ? data : []);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadComments = async (ideaId: string) => {
+    const res = await fetch(`/api/ideas/${ideaId}/comments`);
+    if (res.ok) {
+      const data = await res.json();
+      setComments(Array.isArray(data) ? data : []);
+    }
+  };
+
+  useEffect(() => { loadIdeas(); }, [workspaceId]);
+
+  useEffect(() => {
+    if (!selected) return;
+    loadComments(selected.id);
+  }, [selected?.id]);
+
+  const selectedTags = useMemo(() => {
+    if (!selected?.tags_json) return [] as string[];
+    try { return JSON.parse(selected.tags_json); } catch { return []; }
+  }, [selected?.tags_json]);
+
+  const createTask = async (ideaId: string) => {
+    const res = await fetch(`/api/ideas/${ideaId}/create-task`, { method: 'POST' });
+    if (res.ok) {
+      await loadIdeas();
+      alert('Task criada a partir da ideia ✅');
+    }
+  };
+
+  const addComment = async () => {
+    if (!selected || !commentText.trim()) return;
+    const res = await fetch(`/api/ideas/${selected.id}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ author: 'Magnus', content: commentText.trim() }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setComments(Array.isArray(data) ? data : []);
+      setCommentText('');
+      await loadIdeas();
+    }
+  };
+
+  return (
+    <div className="h-full flex min-w-0">
+      <div className="w-[42%] min-w-[300px] border-r border-mc-border p-3 overflow-y-auto">
+        <div className="text-xs uppercase tracking-wider text-mc-text-secondary mb-3">Ideias</div>
+        {loading && <div className="text-sm text-mc-text-secondary">Carregando...</div>}
+        {!loading && ideas.length === 0 && (
+          <div className="text-sm text-mc-text-secondary">Nenhuma ideia ainda.</div>
+        )}
+        <div className="space-y-2">
+          {ideas.map((idea) => {
+            const tags: string[] = (() => { try { return JSON.parse(idea.tags_json || '[]'); } catch { return []; } })();
+            return (
+              <button
+                key={idea.id}
+                onClick={() => setSelected(idea)}
+                className={`w-full text-left border rounded-lg p-3 ${selected?.id === idea.id ? 'border-mc-accent bg-mc-bg-secondary' : 'border-mc-border bg-mc-bg'}`}
+              >
+                <div className="font-medium text-sm line-clamp-2">{idea.title}</div>
+                {idea.summary && <div className="text-xs text-mc-text-secondary mt-1 line-clamp-3">{idea.summary}</div>}
+                <div className="mt-2 flex items-center gap-2 text-[11px] text-mc-text-secondary">
+                  <span>Status: {idea.status}</span>
+                  {typeof idea.score === 'number' && <span>Score: {idea.score}</span>}
+                </div>
+                {tags.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {tags.slice(0, 4).map((t) => (
+                      <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-mc-bg-tertiary border border-mc-border">#{t}</span>
+                    ))}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="flex-1 p-4 overflow-y-auto">
+        {!selected ? (
+          <div className="text-sm text-mc-text-secondary">Selecione uma ideia para ver detalhes.</div>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold">{selected.title}</h3>
+              <p className="text-sm text-mc-text-secondary mt-1">{selected.summary || 'Sem resumo'}</p>
+              <div className="mt-2 text-xs text-mc-text-secondary">Fonte: {selected.source || 'manual'}</div>
+              {selectedTags.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {selectedTags.map((t: string) => <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-mc-bg-tertiary border border-mc-border">#{t}</span>)}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => createTask(selected.id)}
+                className="min-h-11 px-4 bg-mc-accent-pink text-mc-bg rounded text-sm font-medium hover:bg-mc-accent-pink/90"
+              >
+                Criar Task
+              </button>
+              <button
+                onClick={loadIdeas}
+                className="min-h-11 px-3 bg-mc-bg border border-mc-border rounded text-sm"
+              >
+                Atualizar
+              </button>
+            </div>
+
+            <div className="border-t border-mc-border pt-3">
+              <h4 className="text-sm font-medium mb-2">Comentários</h4>
+              <div className="space-y-2 mb-3">
+                {comments.map((c) => (
+                  <div key={c.id} className="bg-mc-bg-secondary border border-mc-border rounded p-2">
+                    <div className="text-xs text-mc-text-secondary">{c.author || 'anônimo'}</div>
+                    <div className="text-sm">{c.content}</div>
+                  </div>
+                ))}
+                {comments.length === 0 && <div className="text-sm text-mc-text-secondary">Sem comentários ainda.</div>}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Adicionar comentário..."
+                  className="flex-1 min-h-11 bg-mc-bg border border-mc-border rounded px-3 text-sm"
+                />
+                <button onClick={addComment} className="min-h-11 px-3 bg-mc-accent text-mc-bg rounded text-sm">Comentar</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

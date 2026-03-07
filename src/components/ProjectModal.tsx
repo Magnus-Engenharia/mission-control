@@ -63,7 +63,6 @@ function RepoSelector({
 export function ProjectModal({ workspaceId, onClose }: ProjectModalProps) {
   const [form, setForm] = useState({
     name: '',
-    repo_path: '',
     platform: '',
     template: '',
   });
@@ -100,10 +99,17 @@ export function ProjectModal({ workspaceId, onClose }: ProjectModalProps) {
     e.preventDefault();
     setError(null);
 
-    if (!form.name.trim() || !form.repo_path.trim()) {
-      setError('Name and repository path are required.');
+    if (!form.name.trim()) {
+      setError('Project name is required.');
       return;
     }
+
+    const projectSlug = form.name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    const autoRepoPath = `/Users/magnuseng/Projects/${projectSlug || form.name.trim()}`;
 
     if (
       (repoMode.frontend === 'custom' && !customRepo.frontend.trim()) ||
@@ -123,7 +129,7 @@ export function ProjectModal({ workspaceId, onClose }: ProjectModalProps) {
         body: JSON.stringify({
           workspace_id: workspaceId || 'default',
           name: form.name.trim(),
-          repo_path: form.repo_path.trim(),
+          repo_path: autoRepoPath,
           platform: form.platform.trim() || null,
           template: form.template.trim() || null,
           template_frontend_repo: resolveRepo('frontend'),
@@ -181,14 +187,15 @@ export function ProjectModal({ workspaceId, onClose }: ProjectModalProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Repository path</label>
-            <input
-              value={form.repo_path}
-              onChange={(e) => setForm((prev) => ({ ...prev, repo_path: e.target.value }))}
-              placeholder="/Users/magnuseng/Projects/my-new-project"
-              className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
-              required
-            />
+            <label className="block text-sm font-medium mb-1">Repository path (automático)</label>
+            <div className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm text-mc-text-secondary flex items-center">
+              /Users/magnuseng/Projects/
+              {form.name
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-|-$/g, '') || '<nome-do-projeto>'}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

@@ -1,0 +1,54 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { queryAll, queryOne, run } from '@/lib/db';
+import type { Idea } from '@/lib/types';
+
+export const dynamic = 'force-dynamic';
+
+// GET /api/ideas?workspace_id=...
+export async function GET(request: NextRequest) {
+  try {
+    const workspaceId = request.nextUrl.searchParams.get('workspace_id') || 'default';
+    const ideas = queryAll<Idea>('SELECT * FROM ideas WHERE workspace_id = ? ORDER BY created_at DESC', [workspaceId]);
+    return NextResponse.json(ideas);
+  } catch (error) {
+    console.error('Failed to list ideas:', error);
+    return NextResponse.json({ error: 'Failed to list ideas' }, { status: 500 });
+  }
+}
+
+// POST /api/ideas
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json() as Partial<Idea> & { tags?: string[] };
+    const workspaceId = body.workspace_id || 'default';
+    const title = (body.title || '').trim();
+    if (!title) {
+      return NextResponse.json({ error: 'title is required' }, { status: 400 });
+    }
+
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    run(
+      `INSERT INTO ideas (id, workspace_id, title, summary, source, tags_json, status, score, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        workspaceId,
+        title,
+        body.summary || null,
+        body.source || null,
+        body.tags_json || JSON.stringify(body.tags || []),
+        body.status || 'new',
+        body.score ?? null,
+        now,
+        now,
+      ]
+    );
+
+    const created = queryOne<Idea>('SELECT * FROM ideas WHERE id = ?', [id]);
+    return NextResponse.json(created, { status: 201 });
+  } catch (error) {
+    console.error('Failed to create idea:', error);
+    return NextResponse.json({ error: 'Failed to create idea' }, { status: 500 });
+  }
+}

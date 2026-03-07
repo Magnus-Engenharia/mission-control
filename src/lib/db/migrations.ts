@@ -866,6 +866,41 @@ const migrations: Migration[] = [
 
       console.log('[Migration 018] Project template repo fields ready');
     }
+  },
+  {
+    id: '019',
+    name: 'ideas_and_comments',
+    up: (db) => {
+      console.log('[Migration 019] Creating ideas tables...');
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS ideas (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES workspaces(id),
+          title TEXT NOT NULL,
+          summary TEXT,
+          source TEXT,
+          tags_json TEXT,
+          status TEXT DEFAULT 'new' CHECK (status IN ('new','reviewing','accepted','rejected')),
+          score REAL,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now'))
+        )
+      `);
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS idea_comments (
+          id TEXT PRIMARY KEY,
+          idea_id TEXT NOT NULL REFERENCES ideas(id) ON DELETE CASCADE,
+          author TEXT,
+          content TEXT NOT NULL,
+          created_at TEXT DEFAULT (datetime('now'))
+        )
+      `);
+
+      db.exec('CREATE INDEX IF NOT EXISTS idx_ideas_workspace ON ideas(workspace_id)');
+      db.exec('CREATE INDEX IF NOT EXISTS idx_idea_comments_idea ON idea_comments(idea_id)');
+      console.log('[Migration 019] Ideas tables ready');
+    }
   }
 ];
 

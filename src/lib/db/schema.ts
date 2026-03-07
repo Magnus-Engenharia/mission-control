@@ -40,6 +40,28 @@ CREATE TABLE IF NOT EXISTS projects (
   UNIQUE(workspace_id, slug)
 );
 
+-- Ideas table
+CREATE TABLE IF NOT EXISTS ideas (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id),
+  title TEXT NOT NULL,
+  summary TEXT,
+  source TEXT,
+  tags_json TEXT,
+  status TEXT DEFAULT 'new' CHECK (status IN ('new','reviewing','accepted','rejected')),
+  score REAL,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS idea_comments (
+  id TEXT PRIMARY KEY,
+  idea_id TEXT NOT NULL REFERENCES ideas(id) ON DELETE CASCADE,
+  author TEXT,
+  content TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 -- Agents table
 CREATE TABLE IF NOT EXISTS agents (
   id TEXT PRIMARY KEY,
@@ -240,6 +262,8 @@ CREATE INDEX IF NOT EXISTS idx_tasks_assigned ON tasks(assigned_agent_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_workspace ON tasks(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_agents_workspace ON agents(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_projects_workspace ON projects(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_ideas_workspace ON ideas(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_idea_comments_idea ON idea_comments(idea_id);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_events_created ON events(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agents_status ON agents(status);

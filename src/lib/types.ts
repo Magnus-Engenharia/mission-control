@@ -158,6 +158,27 @@ export interface Project {
   updated_at: string;
 }
 
+export interface Idea {
+  id: string;
+  workspace_id: string;
+  title: string;
+  summary?: string;
+  source?: string;
+  tags_json?: string;
+  status: 'new' | 'reviewing' | 'accepted' | 'rejected';
+  score?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IdeaComment {
+  id: string;
+  idea_id: string;
+  author?: string;
+  content: string;
+  created_at: string;
+}
+
 export interface WorkspaceStats {
   id: string;
   name: string;

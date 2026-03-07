@@ -111,20 +111,17 @@ export async function POST(request: NextRequest) {
 
     const workspaceId = body.workspace_id || 'default';
     const name = (body.name || '').trim();
-    const repoPath = (body.repo_path || '').trim();
 
     if (!name) {
       return NextResponse.json({ error: 'name is required' }, { status: 400 });
-    }
-
-    if (!repoPath) {
-      return NextResponse.json({ error: 'repo_path is required' }, { status: 400 });
     }
 
     const slug = slugify(body.slug?.trim() || name);
     if (!slug) {
       return NextResponse.json({ error: 'slug is invalid' }, { status: 400 });
     }
+
+    const repoPath = (body.repo_path || '').trim() || `/Users/magnuseng/Projects/${slug}`;
 
     const existing = queryOne<Project>(
       'SELECT * FROM projects WHERE workspace_id = ? AND slug = ?',
