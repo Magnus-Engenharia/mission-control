@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { queryOne, queryAll, run } from '@/lib/db';
+import { getDb, queryOne, queryAll } from '@/lib/db';
 import { populateTaskRolesFromAgents } from '@/lib/workflow-engine';
 
 export const dynamic = 'force-dynamic';
@@ -35,48 +35,56 @@ export async function POST(
       return NextResponse.json({ error: 'Empty task draft list' }, { status: 400 });
     }
 
+    const db = getDb();
+    const strict = db.prepare(
+      `SELECT id FROM workflow_templates WHERE workspace_id = ? AND name = 'Strict' LIMIT 1`
+    ).get(objective.workspace_id) as { id: string } | undefined;
+
     let created = 0;
-    for (const dt of draftTasks) {
-      const title = String(dt.title || '').trim();
-      if (!title) continue;
-      const taskId = crypto.randomUUID();
-      const description = `${dt.summary || ''}${Array.isArray(dt.acceptance_criteria) && dt.acceptance_criteria.length ? `\n\nAcceptance Criteria:\n- ${dt.acceptance_criteria.join('\n- ')}` : ''}`.trim() || null;
-      const rawTarget = Array.isArray(dt.target_surfaces) && dt.target_surfaces.length === 1
-        ? String(dt.target_surfaces[0] || '').toLowerCase()
-        : 'fullstack';
-      const normalizedTarget =
-        rawTarget === 'frontend' ? 'web' :
-        rawTarget === 'backend' ? 'api' :
-        rawTarget === 'ios' ? 'mobile' :
-        rawTarget;
-      const target = (normalizedTarget === 'web' || normalizedTarget === 'api' || normalizedTarget === 'mobile' || normalizedTarget === 'fullstack')
-        ? normalizedTarget
-        : 'fullstack';
-      const priority = dt.priority === 'high' || dt.priority === 'low' ? dt.priority : 'normal';
 
-      run(
-        `INSERT INTO tasks (id, title, description, status, priority, target, workspace_id, project_id, created_at, updated_at)
-         VALUES (?, ?, ?, 'inbox', ?, ?, ?, ?, datetime('now'), datetime('now'))`,
-        [taskId, title, description, priority, target, objective.workspace_id, objective.project_id]
-      );
+    const tx = db.transaction(() => {
+      for (const dt of draftTasks) {
+        const title = String(dt.title || '').trim();
+        if (!title) continue;
 
-      // Force strict default workflow template
-      const strict = queryOne<{ id: string }>(
-        `SELECT id FROM workflow_templates WHERE workspace_id = ? AND name = 'Strict' LIMIT 1`,
-        [objective.workspace_id]
-      );
-      if (strict?.id) {
-        run('UPDATE tasks SET workflow_template_id = ? WHERE id = ?', [strict.id, taskId]);
+        const taskId = crypto.randomUUID();
+        const description = `${dt.summary || ''}${Array.isArray(dt.acceptance_criteria) && dt.acceptance_criteria.length ? `\n\nAcceptance Criteria:\n- ${dt.acceptance_criteria.join('\n- ')}` : ''}`.trim() || null;
+        const rawTarget = Array.isArray(dt.target_surfaces) && dt.target_surfaces.length === 1
+          ? String(dt.target_surfaces[0] || '').toLowerCase()
+          : 'fullstack';
+        const normalizedTarget =
+          rawTarget === 'frontend' ? 'web' :
+          rawTarget === 'backend' ? 'api' :
+          rawTarget === 'ios' ? 'mobile' :
+          rawTarget;
+        const target = (normalizedTarget === 'web' || normalizedTarget === 'api' || normalizedTarget === 'mobile' || normalizedTarget === 'fullstack')
+          ? normalizedTarget
+          : 'fullstack';
+        const priority = dt.priority === 'high' || dt.priority === 'low' ? dt.priority : 'normal';
+
+        db.prepare(
+          `INSERT INTO tasks (id, title, description, status, priority, target, workspace_id, project_id, created_at, updated_at)
+           VALUES (?, ?, ?, 'inbox', ?, ?, ?, ?, datetime('now'), datetime('now'))`
+        ).run(taskId, title, description, priority, target, objective.workspace_id, objective.project_id);
+
+        if (strict?.id) {
+          db.prepare('UPDATE tasks SET workflow_template_id = ? WHERE id = ?').run(strict.id, taskId);
+        }
+
+        populateTaskRolesFromAgents(taskId, objective.workspace_id);
+        created += 1;
       }
 
-      populateTaskRolesFromAgents(taskId, objective.workspace_id);
-      created += 1;
-    }
+      if (created === 0) {
+        throw new Error('No valid task drafts to create');
+      }
 
-    run(
-      `UPDATE objectives SET status = 'approved', approved_at = datetime('now'), updated_at = datetime('now') WHERE id = ?`,
-      [id]
-    );
+      db.prepare(
+        `UPDATE objectives SET status = 'approved', approved_at = datetime('now'), updated_at = datetime('now') WHERE id = ?`
+      ).run(id);
+    });
+
+    tx();
 
     const createdTasks = queryAll('SELECT * FROM tasks WHERE project_id = ? ORDER BY created_at DESC LIMIT 50', [objective.project_id]);
 
