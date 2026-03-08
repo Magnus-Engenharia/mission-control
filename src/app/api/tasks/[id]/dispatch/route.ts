@@ -417,8 +417,13 @@ If you need help or clarification, ask the orchestrator.`;
       // For tester/reviewer/verifier, the task status is already correct
       if (task.status === 'assigned') {
         run(
-          'UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?',
+          'UPDATE tasks SET status = ?, planning_dispatch_error = NULL, updated_at = ? WHERE id = ?',
           ['in_progress', now, id]
+        );
+      } else {
+        run(
+          'UPDATE tasks SET planning_dispatch_error = NULL, updated_at = ? WHERE id = ?',
+          [now, id]
         );
       }
 
