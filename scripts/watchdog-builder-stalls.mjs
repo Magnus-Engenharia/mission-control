@@ -37,7 +37,7 @@ async function patchTaskStatus(taskId, status) {
 async function main() {
   const db = new Database(DB_PATH, { readonly: false });
 
-  const tasks = db.prepare(`
+  const builderTasks = db.prepare(`
     SELECT t.id, t.title, t.status, t.workspace_id, t.assigned_agent_id, t.updated_at,
            a.id as agent_id, a.role
     FROM tasks t
@@ -45,11 +45,21 @@ async function main() {
     WHERE t.status = 'in_progress' AND a.role = 'builder'
   `).all();
 
+  const learnerTasks = db.prepare(`
+    SELECT t.id, t.title, t.status, t.workspace_id, t.assigned_agent_id, t.updated_at,
+           a.id as agent_id, a.role
+    FROM tasks t
+    JOIN agents a ON a.id = t.assigned_agent_id
+    WHERE t.status = 'verification' AND a.role = 'learner'
+  `).all();
+
   let autoTransitioned = 0;
   let nudged = 0;
   let escalated = 0;
+  let learnerNudged = 0;
+  let learnerBypassed = 0;
 
-  for (const task of tasks) {
+  for (const task of builderTasks) {
     const lastActivity = db.prepare(
       `SELECT created_at FROM task_activities WHERE task_id = ? ORDER BY created_at DESC LIMIT 1`
     ).get(task.id);
@@ -124,8 +134,50 @@ async function main() {
     }
   }
 
+  for (const task of learnerTasks) {
+    const lastActivity = db.prepare(
+      `SELECT created_at FROM task_activities WHERE task_id = ? ORDER BY created_at DESC LIMIT 1`
+    ).get(task.id);
+    const lastDeliverable = db.prepare(
+      `SELECT created_at FROM task_deliverables WHERE task_id = ? ORDER BY created_at DESC LIMIT 1`
+    ).get(task.id);
+
+    const idleMin = Math.min(
+      minutesSince(task.updated_at),
+      minutesSince(lastActivity?.created_at),
+      minutesSince(lastDeliverable?.created_at)
+    );
+
+    if (idleMin < STALL_MINUTES) continue;
+
+    const lastLearnerCompleted = db.prepare(
+      `SELECT created_at FROM task_activities
+       WHERE task_id = ? AND activity_type = 'completed' AND (agent_id = ? OR agent_id IS NULL)
+       ORDER BY created_at DESC LIMIT 1`
+    ).get(task.id, task.agent_id);
+
+    const learnerHasEvidence = Boolean(lastLearnerCompleted?.created_at) && Boolean(lastDeliverable?.created_at);
+    if (learnerHasEvidence) {
+      const patch = await patchTaskStatus(task.id, 'done');
+      logActivity(db, task.id, task.agent_id, `watchdog:learner-auto-done — completion evidence detected (patch ${patch.status})`);
+      learnerBypassed += 1;
+      continue;
+    }
+
+    if (idleMin >= ESCALATE_MINUTES) {
+      const patch = await patchTaskStatus(task.id, 'done');
+      logActivity(db, task.id, task.agent_id, `watchdog:learner-timeout-bypass — stalled ${Math.round(idleMin)}m, moved to done (patch ${patch.status})`);
+      learnerBypassed += 1;
+      continue;
+    }
+
+    const result = await dispatchTask(task.id);
+    logActivity(db, task.id, task.agent_id, `watchdog:learner-nudged — stalled ${Math.round(idleMin)}m, dispatch retried (${result.status})`);
+    learnerNudged += 1;
+  }
+
   db.close();
-  console.log(`[builder-watchdog] scanned=${tasks.length} autoTransitioned=${autoTransitioned} nudged=${nudged} escalated=${escalated}`);
+  console.log(`[builder-watchdog] scannedBuilder=${builderTasks.length} autoTransitioned=${autoTransitioned} nudged=${nudged} escalated=${escalated} scannedLearner=${learnerTasks.length} learnerNudged=${learnerNudged} learnerBypassed=${learnerBypassed}`);
 }
 
 main().catch((err) => {
