@@ -14,10 +14,12 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
   const [projects, setProjects] = useState<Project[]>([]);
   const [phaseFilter, setPhaseFilter] = useState<'all' | 'mvp' | 'growth' | 'stabilizing'>('all');
   const [workspaceDefaultPhase, setWorkspaceDefaultPhase] = useState<'mvp' | 'growth' | 'stabilizing'>('mvp');
+  const [activeSection, setActiveSection] = useState<'ideas' | 'objectives'>('ideas');
   const [showObjectiveCreate, setShowObjectiveCreate] = useState(false);
   const [objectiveLoading, setObjectiveLoading] = useState(false);
   const [objectivePreview, setObjectivePreview] = useState<any | null>(null);
   const [currentObjectiveId, setCurrentObjectiveId] = useState<string>('');
+  const [objectives, setObjectives] = useState<any[]>([]);
   const [objectiveMessage, setObjectiveMessage] = useState('');
   const [newObjective, setNewObjective] = useState({ title: '', description: '', phase: 'mvp' as 'mvp' | 'growth' | 'stabilizing', project_id: '' });
 
@@ -55,6 +57,16 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
     }
   };
 
+  const loadObjectives = async (projectId?: string) => {
+    const pid = projectId || newObjective.project_id;
+    if (!pid) return;
+    const res = await fetch(`/api/projects/${pid}/objectives`);
+    if (res.ok) {
+      const data = await res.json();
+      setObjectives(Array.isArray(data) ? data : []);
+    }
+  };
+
   const createObjective = async () => {
     if (!newObjective.project_id || !newObjective.title.trim()) return;
     setObjectiveLoading(true);
@@ -77,6 +89,7 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
       setCurrentObjectiveId(data.id);
       setObjectivePreview(null);
       setShowObjectiveCreate(false);
+      await loadObjectives(newObjective.project_id);
     } finally {
       setObjectiveLoading(false);
     }
@@ -128,6 +141,7 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
       }
       alert(`Created ${data?.created_count || 0} tasks from objective`);
       await loadIdeas();
+      await loadObjectives();
       setCurrentObjectiveId('');
       setObjectivePreview(null);
     } finally {
@@ -140,6 +154,13 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
     loadProjects();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId]);
+
+  useEffect(() => {
+    if (scope !== 'dashboard') return;
+    if (!newObjective.project_id) return;
+    loadObjectives(newObjective.project_id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newObjective.project_id, scope]);
 
   useEffect(() => {
     const loadWorkspaceMeta = async () => {
@@ -278,26 +299,42 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
     <div className={`h-${fullHeight ? 'full' : 'full'} flex min-w-0${fullHeight ? '' : ''}`}>
       <div className="w-[42%] min-w-[300px] border-r border-mc-border p-3 overflow-y-auto">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-xs uppercase tracking-wider text-mc-text-secondary">Ideias</div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setActiveSection('ideas')}
+              className={`min-h-8 px-2 text-xs rounded border ${activeSection === 'ideas' ? 'bg-mc-accent/20 border-mc-accent text-mc-accent' : 'bg-mc-bg border-mc-border text-mc-text-secondary'}`}
+            >
+              Ideias
+            </button>
             {scope === 'dashboard' && (
+              <button
+                onClick={() => setActiveSection('objectives')}
+                className={`min-h-8 px-2 text-xs rounded border ${activeSection === 'objectives' ? 'bg-mc-accent/20 border-mc-accent text-mc-accent' : 'bg-mc-bg border-mc-border text-mc-text-secondary'}`}
+              >
+                Objetivos
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5">
+            {activeSection === 'objectives' && scope === 'dashboard' ? (
               <button
                 onClick={() => setShowObjectiveCreate((v) => !v)}
                 className="min-h-9 px-2.5 text-xs bg-mc-accent text-mc-bg rounded hover:bg-mc-accent/90"
               >
                 + Novo Objetivo
               </button>
+            ) : (
+              <button
+                onClick={() => setShowCreate((v) => !v)}
+                className="min-h-9 px-2.5 text-xs bg-mc-accent-pink text-mc-bg rounded hover:bg-mc-accent-pink/90"
+              >
+                + Nova Ideia
+              </button>
             )}
-            <button
-              onClick={() => setShowCreate((v) => !v)}
-              className="min-h-9 px-2.5 text-xs bg-mc-accent-pink text-mc-bg rounded hover:bg-mc-accent-pink/90"
-            >
-              + Nova Ideia
-            </button>
           </div>
         </div>
 
-        {scope === 'dashboard' && showObjectiveCreate && (
+        {activeSection === 'objectives' && scope === 'dashboard' && showObjectiveCreate && (
           <div className="mb-3 p-2.5 border border-mc-border rounded bg-mc-bg-secondary space-y-2">
             <input
               value={newObjective.title}
@@ -339,7 +376,7 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
           </div>
         )}
 
-        {scope === 'dashboard' && currentObjectiveId && (
+        {activeSection === 'objectives' && scope === 'dashboard' && currentObjectiveId && (
           <div className="mb-3 p-2.5 border border-mc-border rounded bg-mc-bg-secondary space-y-2">
             <div className="text-xs text-mc-text-secondary">Objective session: {currentObjectiveId.slice(0, 8)}...</div>
             <div className="flex gap-2">
@@ -364,6 +401,27 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
           </div>
         )}
 
+        {activeSection === 'objectives' && scope === 'dashboard' && (
+          <div className="mb-3 space-y-1.5">
+            {objectives.length === 0 ? (
+              <div className="text-xs text-mc-text-secondary">Nenhum objetivo ainda.</div>
+            ) : (
+              objectives.slice(0, 8).map((obj) => (
+                <button
+                  key={obj.id}
+                  onClick={() => { setCurrentObjectiveId(obj.id); setObjectivePreview(null); }}
+                  className={`w-full text-left p-2 rounded border ${currentObjectiveId === obj.id ? 'border-mc-accent bg-mc-accent/10' : 'border-mc-border bg-mc-bg-secondary'} hover:border-mc-accent/60`}
+                >
+                  <div className="text-sm text-mc-text">{obj.title}</div>
+                  <div className="text-xs text-mc-text-secondary">{(obj.phase || 'mvp').toUpperCase()} · {obj.status || 'draft'}</div>
+                </button>
+              ))
+            )}
+          </div>
+        )}
+
+        {activeSection === 'ideas' && (
+        <>
         <div className="mb-3 flex flex-wrap gap-1.5">
           {(['all', 'mvp', 'growth', 'stabilizing'] as const).map((phase) => (
             <button
@@ -488,10 +546,35 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
             );
           })}
         </div>
+        </>
+        )}
       </div>
 
       <div className="flex-1 p-4 overflow-y-auto">
-        {!selected ? (
+        {activeSection === 'objectives' ? (
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold">Objetivos do Projeto</h3>
+            {!currentObjectiveId ? (
+              <div className="text-sm text-mc-text-secondary">Selecione ou crie um objetivo para ver o preview do Master Planner.</div>
+            ) : !objectivePreview ? (
+              <div className="text-sm text-mc-text-secondary">Ainda sem preview. Clique em &quot;Refresh Preview&quot; para buscar resposta do planner.</div>
+            ) : (
+              <div className="space-y-2">
+                <div className="text-sm"><span className="text-mc-text-secondary">Viability:</span> {objectivePreview.viability_score ?? 'N/A'}</div>
+                <div className="text-sm text-mc-text-secondary">{objectivePreview.viability_opinion || 'No opinion yet.'}</div>
+                <div className="text-xs text-mc-text-secondary">Tasks propostas: {Array.isArray(objectivePreview.task_drafts) ? objectivePreview.task_drafts.length : 0}</div>
+                <div className="space-y-1">
+                  {(objectivePreview.task_drafts || []).slice(0, 20).map((t: any, idx: number) => (
+                    <div key={idx} className="p-2 border border-mc-border rounded bg-mc-bg-secondary">
+                      <div className="text-sm font-medium">{t.title}</div>
+                      <div className="text-xs text-mc-text-secondary">{t.summary || 'No summary'}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : !selected ? (
           <div className="text-sm text-mc-text-secondary">Selecione uma ideia para ver detalhes.</div>
         ) : (
           <div className="space-y-4">
