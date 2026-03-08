@@ -324,28 +324,43 @@ Review builder's changed files / git diff and run applicable tests for impacted 
 
 Reply with: \`TEST_PASS: [summary]\` or \`TEST_FAIL: [what failed]\``;
     } else if (isLearner) {
-      completionInstructions = `**YOUR ROLE: LEARNER** — Document what mattered and what should be reused.
+      completionInstructions = `**YOUR ROLE: LEARNER (EXECUTION MODE)** — Produce concrete documentation artifacts from actual code changes.
 
-Review final implementation + tests and produce concise learning artifacts:
-- key decisions and trade-offs
-- pitfalls/bugs fixed
-- reusable patterns/checklists/templates
-- what to monitor next
+NON-NEGOTIABLE RULES:
+- Do NOT only "discuss" or brainstorm with the model.
+- Inspect real implementation evidence (files changed, tests, task activities, deliverables).
+- Write/update concrete docs in repo path: ${taskProjectDir}
+
+Minimum required actions before completion:
+1) Inspect what changed (builder/reviewer outputs + changed files)
+2) Update ${taskProjectDir}/PROJECT_CRITICALS.md with a new section:
+   "## Learner Notes — Task ${task.id}"
+   Include:
+   - what was implemented
+   - key technical decisions and trade-offs
+   - known risks / follow-ups
+   - reusable checklist/pattern
+3) If API/contracts involved, also update/create ${taskProjectDir}/PROJECT_FEATURES.md with a concise delta note.
+
+Completion criteria (must satisfy all):
+- Documentation file(s) actually updated in repo
+- Notes are specific to this task (not generic)
+- At least one reusable pattern/checklist extracted
 
 If documentation is sufficient:
 1. Log activity: POST ${missionControlUrl}/api/tasks/${task.id}/activities
-   Body: {"activity_type": "completed", "message": "Learner summary: key learnings documented"}
+   Body: {"activity_type": "completed", "message": "Learner summary: docs updated with concrete implementation notes"}
 2. Register deliverable: POST ${missionControlUrl}/api/tasks/${task.id}/deliverables
-   Body: {"deliverable_type": "documentation", "title": "Learning Notes", "path": "${taskProjectDir}/PROJECT_CRITICALS.md"}
+   Body: {"deliverable_type": "documentation", "title": "Learner Notes", "path": "${taskProjectDir}/PROJECT_CRITICALS.md"}
 3. Update status: PATCH ${missionControlUrl}/api/tasks/${task.id}
    Body: {"status": "${nextStatus}"}
 ${mvpPushMainInstructions}
 
-If documentation is missing critical context:
+If documentation is missing critical context or files were not updated:
 1. ${failEndpoint}
-   Body: {"reason": "Missing critical documentation/learning artifacts"}
+   Body: {"reason": "Learner did not produce concrete documentation artifacts"}
 
-Reply with: \`LEARN_DONE: [summary]\` or \`LEARN_FAIL: [what is missing]\``;
+Reply with: \`LEARN_DONE: [summary + files updated]\` or \`LEARN_FAIL: [what is missing]\``;
     } else if (isVerifier) {
       completionInstructions = `**YOUR ROLE: VERIFIER** — Verify that all work meets quality standards.
 
