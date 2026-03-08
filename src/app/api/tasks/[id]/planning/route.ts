@@ -82,6 +82,8 @@ export async function POST(
       description: string;
       status: string;
       workspace_id: string;
+      workflow_template_id?: string | null;
+      project_id?: string | null;
       planning_session_key?: string;
       planning_messages?: string;
     } | undefined;
@@ -137,19 +139,65 @@ export async function POST(
     const planningText = `${task.title} ${task.description || ''}`.toLowerCase();
     const stackAlreadyDefined = /(\bios\b|\bandroid\b|\bflutter\b|\breact native\b|\bvue\b|\brails\b|\bnext\.?(js)?\b|\bnode\b|\bsupabase\b|\bfirebase\b|\bpython\b|\bdjango\b|\bfastapi\b)/i.test(planningText);
 
+    const workspaceMeta = queryOne<{ default_phase?: 'mvp' | 'growth' | 'stabilizing'; name: string }>(
+      'SELECT name, default_phase FROM workspaces WHERE id = ?',
+      [task.workspace_id]
+    );
+
+    const workflowTemplate = task.workflow_template_id
+      ? queryOne<{ id: string; name: string; description?: string; stages?: string }>(
+          'SELECT id, name, description, stages FROM workflow_templates WHERE id = ?',
+          [task.workflow_template_id]
+        )
+      : null;
+
+    const defaultWorkflowTemplate = !workflowTemplate
+      ? queryOne<{ id: string; name: string; description?: string; stages?: string }>(
+          'SELECT id, name, description, stages FROM workflow_templates WHERE workspace_id = ? AND is_default = 1 LIMIT 1',
+          [task.workspace_id]
+        )
+      : null;
+
+    const selectedTemplate = workflowTemplate || defaultWorkflowTemplate;
+
+    let templateStagesText = 'N/A';
+    if (selectedTemplate?.stages) {
+      try {
+        const stages = JSON.parse(selectedTemplate.stages) as Array<{ label?: string; role?: string | null; status?: string }>;
+        templateStagesText = stages
+          .map((s, i) => `${i + 1}. ${s.label || s.status || 'stage'} (${s.role || 'no-role'})`)
+          .join('\n');
+      } catch {
+        templateStagesText = String(selectedTemplate.stages);
+      }
+    }
+
+    const phase = workspaceMeta?.default_phase || 'mvp';
+
     // Build the initial planning prompt
     const planningPrompt = `PLANNING REQUEST
 
 Task Title: ${task.title}
 Task Description: ${task.description || 'No description provided'}
+Workspace: ${workspaceMeta?.name || task.workspace_id}
+Workspace default phase: ${phase}
+Selected base workflow template: ${selectedTemplate?.name || 'None'}
+Template description: ${selectedTemplate?.description || 'N/A'}
+Template stages:
+${templateStagesText}
 
 Follow the planning protocol in PLANNING.md (repo root) and apply these rules:
+- Use the selected base workflow template as the default execution backbone (do not ignore it).
 - Ask focused, task-specific multiple-choice questions.
 - Include an "Other" option.
 - Stop asking once the task is sufficiently specified for execution.
 - Final plan must use canonical roles only: planner, builder, tester, reviewer, learner (optional).
 - Do NOT use legacy role aliases in outputs (backend-engineer, frontend-engineer, mobile-engineer, verifier, orchestrator, qa).
 - If stack/tecnologia já estiver definida no contexto, NÃO pergunte sobre stack novamente; avance para as próximas clarificações relevantes.
+- Phase guidance: 
+  - mvp: prioritize must-have scope, fastest path to usable delivery
+  - growth: prioritize expansion features and measurable impact
+  - stabilizing: prioritize reliability, quality, and operational hardening
 ${stackAlreadyDefined ? '- Stack já identificada no contexto desta task: NÃO faça pergunta de stack.' : ''}
 
 Generate your FIRST question now.
