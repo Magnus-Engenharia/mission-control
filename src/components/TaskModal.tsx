@@ -38,7 +38,7 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
     title: task?.title || '',
     description: task?.description || '',
     priority: task?.priority || 'normal' as TaskPriority,
-    target: (task as Task).target || 'fullstack' as TaskTarget,
+    target: (task?.target || 'fullstack') as TaskTarget,
     status: task?.status || 'inbox' as TaskStatus,
     assigned_agent_id: task?.assigned_agent_id || '',
     project_id: task?.project_id || '',
