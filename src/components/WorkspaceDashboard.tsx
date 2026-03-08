@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, ArrowRight, Folder, Users, CheckSquare, Trash2, AlertTriangle, Activity, Lightbulb } from 'lucide-react';
+import { Plus, ArrowRight, Folder, Users, CheckSquare, Trash2, AlertTriangle, Activity, Lightbulb, Pencil, Check, X } from 'lucide-react';
 import Link from 'next/link';
 import type { WorkspaceStats } from '@/lib/types';
 import { IdeasPanel } from './IdeasPanel';
@@ -138,6 +138,7 @@ export function WorkspaceDashboard() {
                 key={workspace.id} 
                 workspace={workspace} 
                 onDelete={(id) => setWorkspaces(workspaces.filter(w => w.id !== id))}
+                onUpdated={(updated) => setWorkspaces((prev) => prev.map((w) => (w.id === updated.id ? { ...w, ...updated } : w)))}
               />
             ))}
             
@@ -190,9 +191,16 @@ export function WorkspaceDashboard() {
   );
 }
 
-function WorkspaceCard({ workspace, onDelete }: { workspace: WorkspaceStats; onDelete: (id: string) => void }) {
+function WorkspaceCard({ workspace, onDelete, onUpdated }: { workspace: WorkspaceStats; onDelete: (id: string) => void; onUpdated: (workspace: WorkspaceStats) => void }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descriptionDraft, setDescriptionDraft] = useState(workspace.description || '');
+  const [savingDescription, setSavingDescription] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    setDescriptionDraft(workspace.description || '');
+  }, [workspace.description]);
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -213,6 +221,31 @@ function WorkspaceCard({ workspace, onDelete }: { workspace: WorkspaceStats; onD
       setShowDeleteConfirm(false);
     }
   };
+
+  const saveDescription = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSavingDescription(true);
+    try {
+      const res = await fetch(`/api/workspaces/${workspace.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: descriptionDraft.trim() || null }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data?.error || 'Failed to update description');
+        return;
+      }
+      const updated = await res.json();
+      onUpdated(updated);
+      setEditingDescription(false);
+    } catch {
+      alert('Failed to update description');
+    } finally {
+      setSavingDescription(false);
+    }
+  };
   
   return (
     <>
@@ -226,12 +259,50 @@ function WorkspaceCard({ workspace, onDelete }: { workspace: WorkspaceStats; onD
                 {workspace.name}
               </h3>
               <p className="text-sm text-mc-text-secondary">/{workspace.slug}</p>
-              {workspace.description && (
-                <p className="text-xs text-mc-text-secondary mt-1">{workspace.description}</p>
+              {editingDescription ? (
+                <div className="mt-2" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                  <textarea
+                    value={descriptionDraft}
+                    onChange={(e) => setDescriptionDraft(e.target.value)}
+                    rows={2}
+                    className="w-full bg-mc-bg border border-mc-border rounded px-2 py-1 text-xs focus:outline-none focus:border-mc-accent resize-y"
+                    placeholder="Dashboard description"
+                  />
+                  <div className="flex gap-1 mt-1">
+                    <button
+                      onClick={saveDescription}
+                      disabled={savingDescription}
+                      className="p-1 rounded bg-mc-accent/20 hover:bg-mc-accent/30 text-mc-accent"
+                      title="Save description"
+                    >
+                      <Check className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingDescription(false); setDescriptionDraft(workspace.description || ''); }}
+                      className="p-1 rounded bg-mc-bg hover:bg-mc-bg-tertiary text-mc-text-secondary"
+                      title="Cancel"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-mc-text-secondary mt-1">{workspace.description || 'No description yet.'}</p>
               )}
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setEditingDescription(true);
+              }}
+              className="p-1.5 rounded hover:bg-mc-accent/20 text-mc-text-secondary hover:text-mc-accent transition-colors opacity-0 group-hover:opacity-100"
+              title="Edit description"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
             {workspace.id !== 'default' && (
               <button
                 onClick={(e) => {
