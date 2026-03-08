@@ -45,6 +45,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    const workspaceMeta = queryOne<{ default_phase?: 'mvp' | 'growth' | 'stabilizing' }>(
+      'SELECT default_phase FROM workspaces WHERE id = ?',
+      [task.workspace_id]
+    );
+    const workspacePhase = workspaceMeta?.default_phase || 'mvp';
+
     // Get agent details
     const agent = queryOne<Agent>(
       'SELECT * FROM agents WHERE id = ?',
@@ -248,6 +254,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const nextStatus = nextStage?.status || 'review';
     const failEndpoint = `POST ${missionControlUrl}/api/tasks/${task.id}/fail`;
 
+    const mvpPushMainInstructions = workspacePhase === 'mvp'
+      ? `
+MVP RELEASE RULE (mandatory when this stage approves):
+- Ensure code is committed and pushed to \`main\` in project root: ${task.project_repo_path || taskProjectDir}
+- Required commands (adapt if already clean):
+  1. \`git add -A\`
+  2. \`git commit -m "feat: finalize ${task.title.replace(/"/g, '\\"')}"\`
+  3. \`git push origin main\`
+- If push fails, report via fail endpoint with exact reason.`
+      : '';
+
     let completionInstructions: string;
     if (isBuilder) {
       completionInstructions = `**YOUR ROLE: BUILDER** — Read project docs first, then plan and implement.
@@ -298,6 +315,7 @@ If documentation is sufficient:
    Body: {"deliverable_type": "documentation", "title": "Learning Notes", "path": "${taskProjectDir}/PROJECT_CRITICALS.md"}
 3. Update status: PATCH ${missionControlUrl}/api/tasks/${task.id}
    Body: {"status": "${nextStatus}"}
+${mvpPushMainInstructions}
 
 If documentation is missing critical context:
 1. ${failEndpoint}
@@ -314,6 +332,7 @@ Review deliverables, test results, and task requirements.
    Body: {"activity_type": "completed", "message": "Verification passed: [summary]"}
 2. Update status: PATCH ${missionControlUrl}/api/tasks/${task.id}
    Body: {"status": "${nextStatus}"}
+${mvpPushMainInstructions}
 
 **If verification FAILS:**
 1. ${failEndpoint}
