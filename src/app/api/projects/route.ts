@@ -148,7 +148,17 @@ function provisionProjectGithubRepo(
     // best effort: git init can fail if path missing; caller ensures it exists
   }
 
-  execFileSync('git', ['add', '.'], { cwd: repoPath, stdio: 'ignore' });
+  try {
+    execFileSync('git', ['add', '.'], { cwd: repoPath, stdio: 'ignore' });
+  } catch {
+    // Fallback for template layouts that contain nested git repos (apps/*/.git)
+    // where `git add .` fails in the workspace root. Keep at least core docs tracked.
+    const criticalDoc = path.join(repoPath, 'PROJECT_CRITICALS.md');
+    if (fs.existsSync(criticalDoc)) {
+      execFileSync('git', ['add', 'PROJECT_CRITICALS.md'], { cwd: repoPath, stdio: 'ignore' });
+    }
+  }
+
   try {
     execFileSync('git', ['diff', '--cached', '--quiet'], { cwd: repoPath, stdio: 'ignore' });
   } catch {
