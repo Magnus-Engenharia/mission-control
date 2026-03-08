@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, queryOne, run } from '@/lib/db';
+import { populateTaskRolesFromAgents } from '@/lib/workflow-engine';
 import type { Idea, Task } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -83,6 +84,8 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
        VALUES (?, ?, ?, 'planning', ?, ?, ?, ?, ?)`,
       [taskId, idea.title, description || null, priorityByPhase[phaseTag], targetWorkspaceId, projectId, now, now]
     );
+
+    populateTaskRolesFromAgents(taskId, targetWorkspaceId);
 
     run('DELETE FROM ideas WHERE id = ?', [id]);
 

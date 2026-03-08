@@ -4,6 +4,7 @@ import { getOpenClawClient } from '@/lib/openclaw/client';
 import { broadcast } from '@/lib/events';
 import { getMissionControlUrl } from '@/lib/config';
 import { extractJSON, getMessagesFromOpenClaw } from '@/lib/planning-utils';
+import { populateTaskRolesFromAgents } from '@/lib/workflow-engine';
 import { Task } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -193,6 +194,10 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
       taskId
     );
 
+    if (workspaceId) {
+      populateTaskRolesFromAgents(taskId, workspaceId);
+    }
+
     // If multiple surfaces are required, explode into focused sibling tasks
     if (selectedSurfaces.length > 1) {
       const parentTask = db.prepare(`SELECT title, description, workspace_id, project_id, business_id, due_date, workflow_template_id FROM tasks WHERE id = ?`).get(taskId) as {
@@ -223,8 +228,9 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
           if (existingTargets.has(surface)) continue;
           const laneTitle = `${parentTask.title} [${surface.toUpperCase()}]`;
           if (existingTitles.has(laneTitle)) continue;
+          const laneTaskId = crypto.randomUUID();
           insertTask.run(
-            crypto.randomUUID(),
+            laneTaskId,
             laneTitle,
             `${parentTask.description || ''}\n\nSurface focus: ${surface}`.trim(),
             'normal',
@@ -235,14 +241,16 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
             parentTask.due_date || null,
             parentTask.workflow_template_id || null
           );
+          populateTaskRolesFromAgents(laneTaskId, parentTask.workspace_id);
         }
 
         const requiresE2E = /clinical|onboard|intake|patient|nutrition|diet/i.test(`${parentTask.title} ${parentTask.description || ''}`) || selectedSurfaces.length > 1;
         if (requiresE2E) {
           const contractTitle = `${parentTask.title} [CONTRACT]`;
           if (!existingTitles.has(contractTitle)) {
+            const contractTaskId = crypto.randomUUID();
             insertTask.run(
-              crypto.randomUUID(),
+              contractTaskId,
               contractTitle,
               `${parentTask.description || ''}\n\nDefine end-to-end API contracts, payload schemas, validation rules, and error responses for selected surfaces: ${selectedSurfaces.join(', ')}.`.trim(),
               'high',
@@ -253,12 +261,14 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
               parentTask.due_date || null,
               parentTask.workflow_template_id || null
             );
+            populateTaskRolesFromAgents(contractTaskId, parentTask.workspace_id);
           }
 
           const integrationTitle = `${parentTask.title} [INTEGRATION]`;
           if (!existingTitles.has(integrationTitle)) {
+            const integrationTaskId = crypto.randomUUID();
             insertTask.run(
-              crypto.randomUUID(),
+              integrationTaskId,
               integrationTitle,
               `${parentTask.description || ''}\n\nEnd-to-end integration and acceptance: verify contract compatibility across ${selectedSurfaces.join(', ')}, execute scenario tests, and document pass/fail evidence.`.trim(),
               'high',
@@ -269,6 +279,7 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
               parentTask.due_date || null,
               parentTask.workflow_template_id || null
             );
+            populateTaskRolesFromAgents(integrationTaskId, parentTask.workspace_id);
           }
         }
       }
