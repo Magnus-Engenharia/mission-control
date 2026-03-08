@@ -41,7 +41,17 @@ export async function POST(
       if (!title) continue;
       const taskId = crypto.randomUUID();
       const description = `${dt.summary || ''}${Array.isArray(dt.acceptance_criteria) && dt.acceptance_criteria.length ? `\n\nAcceptance Criteria:\n- ${dt.acceptance_criteria.join('\n- ')}` : ''}`.trim() || null;
-      const target = Array.isArray(dt.target_surfaces) && dt.target_surfaces.length === 1 ? dt.target_surfaces[0] : 'fullstack';
+      const rawTarget = Array.isArray(dt.target_surfaces) && dt.target_surfaces.length === 1
+        ? String(dt.target_surfaces[0] || '').toLowerCase()
+        : 'fullstack';
+      const normalizedTarget =
+        rawTarget === 'frontend' ? 'web' :
+        rawTarget === 'backend' ? 'api' :
+        rawTarget === 'ios' ? 'mobile' :
+        rawTarget;
+      const target = (normalizedTarget === 'web' || normalizedTarget === 'api' || normalizedTarget === 'mobile' || normalizedTarget === 'fullstack')
+        ? normalizedTarget
+        : 'fullstack';
       const priority = dt.priority === 'high' || dt.priority === 'low' ? dt.priority : 'normal';
 
       run(
