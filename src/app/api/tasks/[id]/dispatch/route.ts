@@ -79,7 +79,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         `SELECT id, title, status FROM tasks
          WHERE assigned_agent_id = ?
            AND id != ?
-           AND status IN ('assigned','in_progress','testing','review','verification')
+           AND status IN ('in_progress','testing','review','verification')
          ORDER BY updated_at DESC
          LIMIT 1`,
         [agent.id, task.id]
