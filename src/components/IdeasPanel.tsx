@@ -45,6 +45,21 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
     }
   };
 
+  const hydrateObjectivePreview = (obj: any) => {
+    if (!obj) return;
+    let drafts: any[] = [];
+    try { drafts = JSON.parse(obj.draft_tasks_json || '[]'); } catch { drafts = []; }
+    if ((obj.planner_opinion || obj.viability_score !== null || drafts.length > 0) && obj.status !== 'planning') {
+      setObjectivePreview({
+        hasUpdates: true,
+        status: obj.status,
+        viability_opinion: obj.planner_opinion || null,
+        viability_score: obj.viability_score ?? null,
+        task_drafts: drafts,
+      });
+    }
+  };
+
   const loadProjects = async () => {
     const res = await fetch(`/api/projects?workspace_id=${workspaceId}`);
     if (res.ok) {
@@ -64,7 +79,12 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
     const res = await fetch(`/api/projects/${pid}/objectives`);
     if (res.ok) {
       const data = await res.json();
-      setObjectives(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setObjectives(list);
+      if (currentObjectiveId) {
+        const selectedObj = list.find((o: any) => o.id === currentObjectiveId);
+        if (selectedObj) hydrateObjectivePreview(selectedObj);
+      }
     }
   };
 
@@ -217,6 +237,12 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
     loadObjectives(newObjective.project_id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newObjective.project_id, scope]);
+
+  useEffect(() => {
+    if (!currentObjectiveId) return;
+    const local = objectives.find((o: any) => o.id === currentObjectiveId);
+    if (local) hydrateObjectivePreview(local);
+  }, [currentObjectiveId, objectives]);
 
   useEffect(() => {
     const loadWorkspaceMeta = async () => {
@@ -472,7 +498,7 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
                   className={`w-full p-2 rounded border ${currentObjectiveId === obj.id ? 'border-mc-accent bg-mc-accent/10' : 'border-mc-border bg-mc-bg-secondary'} hover:border-mc-accent/60`}
                 >
                   <button
-                    onClick={() => { setCurrentObjectiveId(obj.id); setObjectivePreview(null); }}
+                    onClick={() => { setCurrentObjectiveId(obj.id); }}
                     className="w-full text-left"
                   >
                     <div className="text-sm text-mc-text">{obj.title}</div>
