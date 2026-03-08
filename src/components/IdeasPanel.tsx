@@ -21,6 +21,7 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
   const [currentObjectiveId, setCurrentObjectiveId] = useState<string>('');
   const [objectives, setObjectives] = useState<any[]>([]);
   const [objectiveMessage, setObjectiveMessage] = useState('');
+  const [objectiveRunning, setObjectiveRunning] = useState(false);
   const [newObjective, setNewObjective] = useState({ title: '', description: '', phase: 'mvp' as 'mvp' | 'growth' | 'stabilizing', project_id: '' });
 
   const loadIdeas = async () => {
@@ -102,7 +103,42 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
       const res = await fetch(`/api/objectives/${currentObjectiveId}/poll`);
       if (!res.ok) return;
       const data = await res.json();
-      if (data?.hasUpdates) setObjectivePreview(data);
+      if (data?.hasUpdates) {
+        setObjectivePreview(data);
+        if (data?.status === 'ready') setObjectiveRunning(false);
+      }
+    } finally {
+      setObjectiveLoading(false);
+    }
+  };
+
+  const requestObjectivePlannerRun = async () => {
+    if (!currentObjectiveId) return;
+    setObjectiveRunning(true);
+    setObjectiveLoading(true);
+    try {
+      // Ask planner to execute immediately for this objective preview
+      await fetch(`/api/objectives/${currentObjectiveId}/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: 'Run objective viability analysis now and return tiny task draft preview immediately.',
+        }),
+      });
+
+      // Short active polling window to surface result quickly in UI
+      for (let i = 0; i < 12; i++) {
+        const res = await fetch(`/api/objectives/${currentObjectiveId}/poll`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.hasUpdates) setObjectivePreview(data);
+          if (data?.status === 'ready' || Array.isArray(data?.task_drafts)) {
+            setObjectiveRunning(false);
+            return;
+          }
+        }
+        await new Promise((r) => setTimeout(r, 1500));
+      }
     } finally {
       setObjectiveLoading(false);
     }
@@ -399,9 +435,13 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
         {activeSection === 'objectives' && scope === 'dashboard' && currentObjectiveId && (
           <div className="mb-3 p-2.5 border border-mc-border rounded bg-mc-bg-secondary space-y-2">
             <div className="text-xs text-mc-text-secondary">Objective session: {currentObjectiveId.slice(0, 8)}...</div>
-            <div className="flex gap-2">
-              <button onClick={pollObjective} disabled={objectiveLoading} className="min-h-9 px-2 text-xs border border-mc-border rounded">Refresh Preview</button>
+            <div className="flex gap-2 items-center flex-wrap">
+              <button onClick={requestObjectivePlannerRun} disabled={objectiveLoading || objectiveRunning} className="min-h-9 px-2 text-xs border border-mc-border rounded">
+                {objectiveRunning ? 'Master Planner running…' : 'Solicitar ação do Master Planner'}
+              </button>
+              <button onClick={pollObjective} disabled={objectiveLoading} className="min-h-9 px-2 text-xs border border-mc-border rounded">Atualizar Preview</button>
               <button onClick={approveObjective} disabled={objectiveLoading || !objectivePreview?.task_drafts?.length} className="min-h-9 px-2 text-xs bg-mc-accent text-mc-bg rounded">Approve & Create Tasks</button>
+              {objectiveRunning && <span className="text-[11px] text-amber-300 animate-pulse">Analisando objetivo agora…</span>}
             </div>
             {objectivePreview && (
               <div className="text-xs space-y-1 text-mc-text-secondary">
