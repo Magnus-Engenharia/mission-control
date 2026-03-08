@@ -280,12 +280,14 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
         <div className="flex items-center justify-between mb-3">
           <div className="text-xs uppercase tracking-wider text-mc-text-secondary">Ideias</div>
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setShowObjectiveCreate((v) => !v)}
-              className="min-h-9 px-2.5 text-xs bg-mc-accent text-mc-bg rounded hover:bg-mc-accent/90"
-            >
-              + Novo Objetivo
-            </button>
+            {scope === 'dashboard' && (
+              <button
+                onClick={() => setShowObjectiveCreate((v) => !v)}
+                className="min-h-9 px-2.5 text-xs bg-mc-accent text-mc-bg rounded hover:bg-mc-accent/90"
+              >
+                + Novo Objetivo
+              </button>
+            )}
             <button
               onClick={() => setShowCreate((v) => !v)}
               className="min-h-9 px-2.5 text-xs bg-mc-accent-pink text-mc-bg rounded hover:bg-mc-accent-pink/90"
@@ -295,7 +297,7 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
           </div>
         </div>
 
-        {showObjectiveCreate && (
+        {scope === 'dashboard' && showObjectiveCreate && (
           <div className="mb-3 p-2.5 border border-mc-border rounded bg-mc-bg-secondary space-y-2">
             <input
               value={newObjective.title}
@@ -337,7 +339,7 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
           </div>
         )}
 
-        {currentObjectiveId && (
+        {scope === 'dashboard' && currentObjectiveId && (
           <div className="mb-3 p-2.5 border border-mc-border rounded bg-mc-bg-secondary space-y-2">
             <div className="text-xs text-mc-text-secondary">Objective session: {currentObjectiveId.slice(0, 8)}...</div>
             <div className="flex gap-2">
