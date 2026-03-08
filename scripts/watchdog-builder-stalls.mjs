@@ -25,17 +25,27 @@ async function dispatchTask(taskId) {
   return { ok: res.ok, status: res.status, text: await res.text() };
 }
 
+async function patchTaskStatus(taskId, status) {
+  const res = await fetch(`${API_BASE}/api/tasks/${taskId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+  return { ok: res.ok, status: res.status, text: await res.text() };
+}
+
 async function main() {
   const db = new Database(DB_PATH, { readonly: false });
 
   const tasks = db.prepare(`
-    SELECT t.id, t.title, t.status, t.assigned_agent_id, t.updated_at,
+    SELECT t.id, t.title, t.status, t.workspace_id, t.assigned_agent_id, t.updated_at,
            a.id as agent_id, a.role
     FROM tasks t
     JOIN agents a ON a.id = t.assigned_agent_id
     WHERE t.status = 'in_progress' AND a.role = 'builder'
   `).all();
 
+  let autoTransitioned = 0;
   let nudged = 0;
   let escalated = 0;
 
@@ -52,6 +62,35 @@ async function main() {
       minutesSince(lastActivity?.created_at),
       minutesSince(lastDeliverable?.created_at)
     );
+
+    // Builder completion handoff guard:
+    // if builder logged completed + deliverable exists but status never moved,
+    // auto-transition to testing/review and dispatch downstream stage.
+    const lastBuilderCompleted = db.prepare(
+      `SELECT created_at FROM task_activities
+       WHERE task_id = ? AND activity_type = 'completed' AND (agent_id = ? OR agent_id IS NULL)
+       ORDER BY created_at DESC LIMIT 1`
+    ).get(task.id, task.agent_id);
+
+    const hasDeliverable = Boolean(lastDeliverable?.created_at);
+    const completedRecently = minutesSince(lastBuilderCompleted?.created_at) <= 30;
+
+    if (hasDeliverable && completedRecently) {
+      const ws = db.prepare('SELECT bypass_tester FROM workspaces WHERE id = ?').get(task.workspace_id);
+      const bypassTester = Boolean(ws?.bypass_tester);
+      const targetStatus = bypassTester ? 'review' : 'testing';
+
+      const patch = await patchTaskStatus(task.id, targetStatus);
+      const dispatch = await dispatchTask(task.id);
+      logActivity(
+        db,
+        task.id,
+        task.agent_id,
+        `watchdog:auto-transition — builder completion evidence detected, moved to ${targetStatus} (patch ${patch.status}, dispatch ${dispatch.status})`
+      );
+      autoTransitioned += 1;
+      continue;
+    }
 
     if (idleMin < STALL_MINUTES) continue;
 
@@ -86,7 +125,7 @@ async function main() {
   }
 
   db.close();
-  console.log(`[builder-watchdog] scanned=${tasks.length} nudged=${nudged} escalated=${escalated}`);
+  console.log(`[builder-watchdog] scanned=${tasks.length} autoTransitioned=${autoTransitioned} nudged=${nudged} escalated=${escalated}`);
 }
 
 main().catch((err) => {
