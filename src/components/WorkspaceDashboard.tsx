@@ -226,6 +226,9 @@ function WorkspaceCard({ workspace, onDelete }: { workspace: WorkspaceStats; onD
                 {workspace.name}
               </h3>
               <p className="text-sm text-mc-text-secondary">/{workspace.slug}</p>
+              {workspace.description && (
+                <p className="text-xs text-mc-text-secondary mt-1">{workspace.description}</p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -307,6 +310,7 @@ function WorkspaceCard({ workspace, onDelete }: { workspace: WorkspaceStats; onD
 
 function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [icon, setIcon] = useState('📁');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -327,7 +331,7 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
       const res = await fetch('/api/workspaces', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), icon }),
+        body: JSON.stringify({ name: name.trim(), description: description.trim() || null, icon }),
       });
 
       if (res.ok) {
@@ -412,6 +416,17 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
               placeholder="e.g., Acme Corp"
               className="w-full bg-mc-bg border border-mc-border rounded-lg px-4 py-2 focus:outline-none focus:border-mc-accent"
               autoFocus
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What is this dashboard/project about? Goals, domain, constraints..."
+              rows={3}
+              className="w-full bg-mc-bg border border-mc-border rounded-lg px-4 py-2 focus:outline-none focus:border-mc-accent resize-y"
             />
           </div>
 

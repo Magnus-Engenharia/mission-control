@@ -188,6 +188,7 @@ export interface WorkspaceStats {
   name: string;
   slug: string;
   icon: string;
+  description?: string | null;
   taskCounts: {
     pending_dispatch: number;
     planning: number;

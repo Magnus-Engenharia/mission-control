@@ -61,6 +61,7 @@ export async function GET(request: NextRequest) {
           name: workspace.name,
           slug: workspace.slug,
           icon: workspace.icon,
+          description: workspace.description,
           taskCounts: counts,
           agentCount: agentCount.count
         };
