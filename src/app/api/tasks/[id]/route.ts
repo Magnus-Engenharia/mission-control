@@ -109,10 +109,8 @@ export async function PATCH(
       updates.push('project_id = ?');
       values.push(validatedData.project_id);
     }
-    if (validatedData.workflow_template_id !== undefined) {
-      updates.push('workflow_template_id = ?');
-      values.push(validatedData.workflow_template_id);
-    }
+    // Workflow template is fixed to workspace default strict flow.
+    // Ignore direct workflow_template_id patching to avoid manual template switching.
 
     // Track if we need to dispatch task
     let shouldDispatch = false;

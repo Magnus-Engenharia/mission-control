@@ -47,14 +47,19 @@ export function TeamTab({ taskId, workspaceId }: TeamTabProps) {
           })));
         }
 
+        let strictWorkflowId = '';
         if (workflowsRes.ok) {
           const data = await workflowsRes.json();
           setWorkflows(data);
+          const strict = data.find((wf: WorkflowTemplate) => wf.name?.toLowerCase() === 'strict') || data.find((wf: WorkflowTemplate) => wf.is_default);
+          strictWorkflowId = strict?.id || '';
+          setSelectedWorkflow(strictWorkflowId);
         }
 
         if (taskRes.ok) {
           const task = await taskRes.json();
-          setSelectedWorkflow(task.workflow_template_id || '');
+          const targetWorkflowId = strictWorkflowId || task.workflow_template_id || '';
+          setSelectedWorkflow(targetWorkflowId);
         }
       } catch (err) {
         console.error('Failed to load team data:', err);
@@ -163,21 +168,12 @@ export function TeamTab({ taskId, workspaceId }: TeamTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Workflow Template Selector */}
+      {/* Fixed Workflow (always strict) */}
       <div>
-        <label className="block text-sm font-medium mb-2">Workflow Template</label>
-        <select
-          value={selectedWorkflow}
-          onChange={(e) => handleWorkflowChange(e.target.value)}
-          className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
-        >
-          <option value="">No workflow (single agent)</option>
-          {workflows.map(wf => (
-            <option key={wf.id} value={wf.id}>
-              {wf.name}{wf.is_default ? ' (Default)' : ''} — {wf.description}
-            </option>
-          ))}
-        </select>
+        <label className="block text-sm font-medium mb-2">Workflow</label>
+        <div className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm text-mc-text-secondary">
+          Strict (Builder → Tester → Reviewer → Learner)
+        </div>
       </div>
 
       {/* Workflow Stages Visualization */}
