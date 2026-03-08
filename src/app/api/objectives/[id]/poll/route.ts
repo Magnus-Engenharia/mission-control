@@ -10,8 +10,8 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const objective = queryOne<{ id: string; planner_session_key?: string | null; planner_messages?: string | null; status: string }>(
-    'SELECT id, planner_session_key, planner_messages, status FROM objectives WHERE id = ?',
+  const objective = queryOne<{ id: string; planner_session_key?: string | null; planner_messages?: string | null; status: string; track?: 'baseline' | 'differential' }>(
+    'SELECT id, planner_session_key, planner_messages, status, track FROM objectives WHERE id = ?',
     [id]
   );
 
@@ -58,6 +58,7 @@ export async function GET(
       assumptions: parsedDraft.assumptions || [],
       risks: parsedDraft.risks || [],
       questions_for_user: parsedDraft.questions_for_user || [],
+      track: objective.track || 'baseline',
       task_drafts: parsedDraft.task_drafts || [],
     });
   }

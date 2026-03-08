@@ -932,6 +932,19 @@ const migrations: Migration[] = [
     }
   },
   {
+    id: '026',
+    name: 'objectives_track',
+    up: (db) => {
+      console.log('[Migration 026] Adding objectives.track...');
+      const info = db.prepare('PRAGMA table_info(objectives)').all() as { name: string }[];
+      if (!info.some((c) => c.name === 'track')) {
+        db.exec("ALTER TABLE objectives ADD COLUMN track TEXT DEFAULT 'baseline' CHECK (track IN ('baseline','differential'))");
+      }
+      db.exec("UPDATE objectives SET track = COALESCE(track, 'baseline')");
+      console.log('[Migration 026] objectives.track ready');
+    }
+  },
+  {
     id: '025',
     name: 'workspace_bypass_tester',
     up: (db) => {

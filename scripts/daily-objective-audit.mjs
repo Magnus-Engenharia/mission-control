@@ -46,11 +46,11 @@ function findIssues(repoPath) {
   return issues;
 }
 
-async function createObjective(projectId, title, description, phase = 'mvp') {
+async function createObjective(projectId, title, description, phase = 'mvp', track = 'baseline') {
   const res = await fetch(`${API_BASE}/api/projects/${projectId}/objectives`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, description, phase }),
+    body: JSON.stringify({ title, description, phase, track }),
   });
 
   if (!res.ok) {
@@ -86,31 +86,49 @@ async function main() {
     const issues = findIssues(project.repo_path || '');
     if (issues.length === 0) continue;
 
-    const title = `${project.name}: Contract & File Baseline Audit`;
-    const exists = existingObjectiveStmt.get(project.id, title);
-    if (exists) {
-      logs.push(`skip duplicate objective for ${project.name}`);
-      continue;
-    }
+    const baselineTitle = `${project.name}: Baseline Contract & File Audit`;
+    const baselineExists = existingObjectiveStmt.get(project.id, baselineTitle);
 
-    const description = [
-      'Daily automated audit detected gaps that can impact planning quality and delivery reliability.',
+    const baselineDescription = [
+      'Daily automated baseline audit detected gaps that can impact planning quality and delivery reliability.',
       '',
-      'Detected issues:',
+      'Detected baseline issues:',
       ...issues.map((i) => `- ${i}`),
       '',
       'Objective requirements:',
       '- Ensure baseline functionality docs are complete.',
-      '- Ensure competitive-quality contract hygiene (no ambiguous APIs).',
       '- Propose tiny tasks only, with clear acceptance criteria.',
     ].join('\n');
 
-    try {
-      await createObjective(project.id, title, description, project.default_phase || 'mvp');
-      created += 1;
-      logs.push(`created objective for ${project.name}`);
-    } catch (err) {
-      logs.push(`error for ${project.name}: ${err.message}`);
+    if (!baselineExists) {
+      try {
+        await createObjective(project.id, baselineTitle, baselineDescription, project.default_phase || 'mvp', 'baseline');
+        created += 1;
+        logs.push(`created baseline objective for ${project.name}`);
+      } catch (err) {
+        logs.push(`error baseline for ${project.name}: ${err.message}`);
+      }
+    }
+
+    const differentialTitle = `${project.name}: Differential Advantage Audit`;
+    const differentialExists = existingObjectiveStmt.get(project.id, differentialTitle);
+    const hasAIMarkers = existsAny(project.repo_path || '', ['ai', 'ml', 'models', 'inference']);
+    if (!hasAIMarkers && !differentialExists) {
+      const differentialDescription = [
+        'Daily competitive audit: project lacks explicit differential AI/product edge artifacts.',
+        '',
+        'Differential opportunity focus:',
+        '- Define one measurable competitive advantage objective.',
+        '- Avoid baseline parity tasks in this objective.',
+        '- Keep tiny tasks and clear acceptance criteria.',
+      ].join('\n');
+      try {
+        await createObjective(project.id, differentialTitle, differentialDescription, project.default_phase || 'mvp', 'differential');
+        created += 1;
+        logs.push(`created differential objective for ${project.name}`);
+      } catch (err) {
+        logs.push(`error differential for ${project.name}: ${err.message}`);
+      }
     }
   }
 

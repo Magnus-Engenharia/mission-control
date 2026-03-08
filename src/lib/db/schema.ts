@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS objectives (
   title TEXT NOT NULL,
   description TEXT,
   phase TEXT DEFAULT 'mvp' CHECK (phase IN ('mvp','growth','stabilizing')),
+  track TEXT DEFAULT 'baseline' CHECK (track IN ('baseline','differential')),
   status TEXT DEFAULT 'draft' CHECK (status IN ('draft','planning','ready','approved','cancelled')),
   planner_session_key TEXT,
   planner_messages TEXT,

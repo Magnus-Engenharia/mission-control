@@ -16,6 +16,7 @@ export async function POST(
       workspace_id: string;
       project_id: string;
       title: string;
+      track?: 'baseline' | 'differential';
       draft_tasks_json?: string | null;
       status: string;
     }>('SELECT * FROM objectives WHERE id = ?', [id]);
@@ -28,6 +29,7 @@ export async function POST(
       summary?: string;
       acceptance_criteria?: string[];
       priority?: 'low' | 'normal' | 'high';
+      track?: 'baseline' | 'differential';
       target_surfaces?: Array<'web' | 'api' | 'mobile'>;
     }>;
 
@@ -55,6 +57,12 @@ export async function POST(
         const dt = draftTasks[idx];
         const title = String(dt.title || '').trim();
         if (!title) continue;
+
+        const objectiveTrack = objective.track || 'baseline';
+        const taskTrack = dt.track || objectiveTrack;
+        if (taskTrack !== objectiveTrack) {
+          throw new Error(`Task track mismatch for "${title}". Expected ${objectiveTrack}, got ${taskTrack}.`);
+        }
 
         const taskId = crypto.randomUUID();
         const description = `${dt.summary || ''}${Array.isArray(dt.acceptance_criteria) && dt.acceptance_criteria.length ? `\n\nAcceptance Criteria:\n- ${dt.acceptance_criteria.join('\n- ')}` : ''}`.trim() || null;

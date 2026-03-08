@@ -29,6 +29,7 @@ export async function POST(
     const title = String(body.title || '').trim();
     const description = String(body.description || '').trim();
     const phase = ['mvp', 'growth', 'stabilizing'].includes(body.phase) ? body.phase : 'mvp';
+    const track = ['baseline', 'differential'].includes(body.track) ? body.track : 'baseline';
 
     if (!title) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
@@ -53,15 +54,16 @@ export async function POST(
     const sessionKey = `${plannerPrefix}${objectiveId}`;
 
     run(
-      `INSERT INTO objectives (id, workspace_id, project_id, title, description, phase, status, planner_session_key, planner_messages, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'planning', ?, ?, datetime('now'), datetime('now'))`,
-      [objectiveId, project.workspace_id, projectId, title, description || null, phase, sessionKey, JSON.stringify([])]
+      `INSERT INTO objectives (id, workspace_id, project_id, title, description, phase, track, status, planner_session_key, planner_messages, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'planning', ?, ?, datetime('now'), datetime('now'))`,
+      [objectiveId, project.workspace_id, projectId, title, description || null, phase, track, sessionKey, JSON.stringify([])]
     );
 
     const prompt = `You are Master Planner for project ${project.name}.
 Objective title: ${title}
 Objective description: ${description || 'N/A'}
 Phase: ${phase}
+Track: ${track}
 
 Return ONLY valid JSON with this schema:
 {
@@ -75,6 +77,7 @@ Return ONLY valid JSON with this schema:
     {
       "title": "Tiny task title",
       "summary": "Small and executable",
+      "track": "baseline",
       "target_surfaces": ["web"],
       "acceptance_criteria": ["..."],
       "priority": "high"
@@ -85,6 +88,8 @@ Return ONLY valid JSON with this schema:
 Rules:
 - Tiny granularity only (half-day-ish each)
 - Project-only scope
+- Every task_draft must include track equal to objective Track (${track})
+- Do NOT mix baseline and differential in the same objective decomposition
 - Include contract/integration tasks when multiple surfaces are needed
 - Do not create deadlines`;
 

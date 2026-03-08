@@ -22,7 +22,7 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
   const [objectives, setObjectives] = useState<any[]>([]);
   const [objectiveMessage, setObjectiveMessage] = useState('');
   const [objectiveRunning, setObjectiveRunning] = useState(false);
-  const [newObjective, setNewObjective] = useState({ title: '', description: '', phase: 'mvp' as 'mvp' | 'growth' | 'stabilizing', project_id: '' });
+  const [newObjective, setNewObjective] = useState({ title: '', description: '', phase: 'mvp' as 'mvp' | 'growth' | 'stabilizing', track: 'baseline' as 'baseline' | 'differential', project_id: '' });
 
   const loadIdeas = async () => {
     setLoading(true);
@@ -99,6 +99,7 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
           title: newObjective.title.trim(),
           description: newObjective.description.trim(),
           phase: newObjective.phase,
+          track: newObjective.track,
         }),
       });
       if (!res.ok) {
@@ -430,7 +431,7 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
               placeholder="Objective details"
               className="w-full min-h-16 bg-mc-bg border border-mc-border rounded px-2 py-1.5 text-sm"
             />
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <select
                 value={newObjective.project_id}
                 onChange={(e) => setNewObjective((p) => ({ ...p, project_id: e.target.value }))}
@@ -449,6 +450,14 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
                 <option value="mvp">MVP</option>
                 <option value="growth">Growth</option>
                 <option value="stabilizing">Stabilizing</option>
+              </select>
+              <select
+                value={newObjective.track}
+                onChange={(e) => setNewObjective((p) => ({ ...p, track: e.target.value as 'baseline' | 'differential' }))}
+                className="w-full min-h-10 bg-mc-bg border border-mc-border rounded px-2 text-sm"
+              >
+                <option value="baseline">Track: Baseline</option>
+                <option value="differential">Track: Differential</option>
               </select>
             </div>
             <div className="flex justify-end gap-2">
@@ -502,7 +511,7 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
                     className="w-full text-left"
                   >
                     <div className="text-sm text-mc-text">{obj.title}</div>
-                    <div className="text-xs text-mc-text-secondary">{(obj.phase || 'mvp').toUpperCase()} · {obj.status || 'draft'}</div>
+                    <div className="text-xs text-mc-text-secondary">{(obj.phase || 'mvp').toUpperCase()} · {(obj.track || 'baseline').toUpperCase()} · {obj.status || 'draft'}</div>
                   </button>
                   <div className="mt-1 flex justify-end">
                     <button
