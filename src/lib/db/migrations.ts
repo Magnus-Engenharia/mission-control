@@ -938,12 +938,12 @@ const migrations: Migration[] = [
       console.log('[Migration 027] Routing learner agents to codex...');
       db.exec(`
         UPDATE agents
-        SET gateway_agent_id = 'codex',
-            session_key_prefix = 'agent:codex:',
+        SET gateway_agent_id = 'cursor',
+            session_key_prefix = 'agent:cursor:',
             updated_at = datetime('now')
         WHERE role = 'learner';
       `);
-      console.log('[Migration 027] learner agents now route to codex');
+      console.log('[Migration 027] learner agents now route to cursor');
     }
   },
   {
