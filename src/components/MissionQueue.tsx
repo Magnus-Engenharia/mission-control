@@ -292,6 +292,12 @@ function TaskCard({ task, onDragStart, onClick, onMoveStatus, isDragging, mobile
   const isPlanning = task.status === 'planning';
   const isAssigned = task.status === 'assigned';
   const dispatchError = task.planning_dispatch_error;
+  const isQueueWait = Boolean(
+    dispatchError && (
+      dispatchError.includes('Builder already has an active task') ||
+      dispatchError.includes('one task at a time')
+    )
+  );
 
   return (
     <div
@@ -318,10 +324,17 @@ function TaskCard({ task, onDragStart, onClick, onMoveStatus, isDragging, mobile
           </div>
         )}
 
-        {isAssigned && dispatchError && (
+        {isAssigned && dispatchError && !isQueueWait && (
           <div className={`flex items-start gap-2 ${portraitMode ? 'mb-3 py-2 px-3' : 'mb-2 py-1.5 px-2.5'} bg-red-500/10 rounded-md border border-red-500/30`}>
             <div className="w-2 h-2 bg-red-400 rounded-full mt-1 flex-shrink-0" />
             <span className="text-xs text-red-300">Assigned, but blocked: {dispatchError}</span>
+          </div>
+        )}
+
+        {isAssigned && isQueueWait && (
+          <div className={`flex items-center gap-2 ${portraitMode ? 'mb-3 py-2 px-3' : 'mb-2 py-1.5 px-2.5'} bg-yellow-500/10 rounded-md border border-yellow-500/30`}>
+            <div className="w-2 h-2 bg-yellow-400 rounded-full flex-shrink-0" />
+            <span className="text-xs text-yellow-200">Waiting in queue — builder is finishing another task.</span>
           </div>
         )}
 
@@ -339,7 +352,7 @@ function TaskCard({ task, onDragStart, onClick, onMoveStatus, isDragging, mobile
           </div>
         )}
 
-        {['testing', 'verification'].includes(task.status) && dispatchError && (
+        {['testing', 'verification'].includes(task.status) && dispatchError && !isQueueWait && (
           <div className={`flex items-start gap-2 ${portraitMode ? 'mb-3 py-2 px-3' : 'mb-2 py-1.5 px-2.5'} bg-red-500/10 rounded-md border border-red-500/30`}>
             <div className="w-2 h-2 bg-red-400 rounded-full mt-1 flex-shrink-0" />
             <span className="text-xs text-red-300">{dispatchError}</span>
