@@ -133,11 +133,18 @@ export async function DELETE(
 
       // Workspace-scoped rows
       db.prepare('DELETE FROM knowledge_entries WHERE workspace_id = ?').run(workspaceId);
-      db.prepare('DELETE FROM workflow_templates WHERE workspace_id = ?').run(workspaceId);
 
       // Core entities (task child tables cascade via FK)
       db.prepare('DELETE FROM tasks WHERE workspace_id = ?').run(workspaceId);
       db.prepare('DELETE FROM agents WHERE workspace_id = ?').run(workspaceId);
+
+      // Project/idea graph
+      db.prepare('DELETE FROM idea_comments WHERE idea_id IN (SELECT id FROM ideas WHERE workspace_id = ?)').run(workspaceId);
+      db.prepare('DELETE FROM ideas WHERE workspace_id = ?').run(workspaceId);
+      db.prepare('DELETE FROM projects WHERE workspace_id = ?').run(workspaceId);
+
+      // Templates must be removed after tasks (tasks may reference workflow_template_id)
+      db.prepare('DELETE FROM workflow_templates WHERE workspace_id = ?').run(workspaceId);
 
       // Finally remove workspace
       db.prepare('DELETE FROM workspaces WHERE id = ?').run(workspaceId);
