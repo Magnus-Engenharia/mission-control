@@ -10,8 +10,9 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
   const [commentText, setCommentText] = useState('');
   const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const [newIdea, setNewIdea] = useState({ title: '', summary: '', tags: '', score: '', isNewDashboard: false, project_id: '' });
+  const [newIdea, setNewIdea] = useState({ title: '', summary: '', tags: '', score: '', isNewDashboard: false, project_id: '', phase: 'mvp' as 'mvp' | 'growth' | 'stabilizing' });
   const [projects, setProjects] = useState<Project[]>([]);
+  const [phaseFilter, setPhaseFilter] = useState<'all' | 'mvp' | 'growth' | 'stabilizing'>('all');
 
   const loadIdeas = async () => {
     setLoading(true);
@@ -71,6 +72,18 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
     try { return JSON.parse(selected.tags_json); } catch { return []; }
   }, [selected?.tags_json]);
 
+  const filteredIdeas = useMemo(() => {
+    if (phaseFilter === 'all') return ideas;
+    return ideas.filter((idea) => {
+      try {
+        const tags: string[] = JSON.parse(idea.tags_json || '[]');
+        return tags.includes(`phase:${phaseFilter}`);
+      } catch {
+        return false;
+      }
+    });
+  }, [ideas, phaseFilter]);
+
   const createTask = async (ideaId: string) => {
     const res = await fetch(`/api/ideas/${ideaId}/create-task`, { method: 'POST' });
     if (res.ok) {
@@ -127,6 +140,9 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
       .split(',')
       .map((t) => t.trim())
       .filter(Boolean);
+    if (!tags.some((t) => t.startsWith('phase:'))) {
+      tags.push(`phase:${newIdea.phase}`);
+    }
 
     const res = await fetch('/api/ideas', {
       method: 'POST',
@@ -145,7 +161,7 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
 
     if (res.ok) {
       setShowCreate(false);
-      setNewIdea({ title: '', summary: '', tags: '', score: '', isNewDashboard: false, project_id: '' });
+      setNewIdea({ title: '', summary: '', tags: '', score: '', isNewDashboard: false, project_id: '', phase: 'mvp' });
       await loadIdeas();
     }
   };
@@ -161,6 +177,18 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
           >
             + Nova Ideia
           </button>
+        </div>
+
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {(['all', 'mvp', 'growth', 'stabilizing'] as const).map((phase) => (
+            <button
+              key={phase}
+              onClick={() => setPhaseFilter(phase)}
+              className={`px-2 py-1 rounded text-xs border ${phaseFilter === phase ? 'bg-mc-accent/20 border-mc-accent text-mc-accent' : 'bg-mc-bg border-mc-border text-mc-text-secondary'}`}
+            >
+              {phase === 'all' ? 'All' : phase.toUpperCase()}
+            </button>
+          ))}
         </div>
 
         {showCreate && (
@@ -207,13 +235,22 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <input
                 value={newIdea.tags}
                 onChange={(e) => setNewIdea((p) => ({ ...p, tags: e.target.value }))}
                 placeholder="tags separadas por vírgula"
                 className="w-full min-h-10 bg-mc-bg border border-mc-border rounded px-2 text-sm"
               />
+              <select
+                value={newIdea.phase}
+                onChange={(e) => setNewIdea((p) => ({ ...p, phase: e.target.value as 'mvp' | 'growth' | 'stabilizing' }))}
+                className="w-full min-h-10 bg-mc-bg border border-mc-border rounded px-2 text-sm"
+              >
+                <option value="mvp">Phase: MVP</option>
+                <option value="growth">Phase: Growth</option>
+                <option value="stabilizing">Phase: Stabilizing</option>
+              </select>
               <input
                 value={newIdea.score}
                 onChange={(e) => setNewIdea((p) => ({ ...p, score: e.target.value }))}
@@ -232,11 +269,11 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
           </div>
         )}
         {loading && <div className="text-sm text-mc-text-secondary">Carregando...</div>}
-        {!loading && ideas.length === 0 && (
-          <div className="text-sm text-mc-text-secondary">Nenhuma ideia ainda.</div>
+        {!loading && filteredIdeas.length === 0 && (
+          <div className="text-sm text-mc-text-secondary">Nenhuma ideia para este filtro.</div>
         )}
         <div className="space-y-2">
-          {ideas.map((idea) => {
+          {filteredIdeas.map((idea) => {
             const tags: string[] = (() => { try { return JSON.parse(idea.tags_json || '[]'); } catch { return []; } })();
             return (
               <button
