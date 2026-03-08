@@ -987,12 +987,12 @@ const migrations: Migration[] = [
 
       updateTemplate.run(
         'Strict',
-        'Builder → Tester → Review Queue → Reviewer Verify — for critical projects',
+        'Builder → Tester → Reviewer → Learner — end-to-end with documentation',
         JSON.stringify([
           { id: 'build', label: 'Build', role: 'builder', status: 'in_progress' },
           { id: 'test', label: 'Test', role: 'tester', status: 'testing' },
-          { id: 'review', label: 'Review', role: null, status: 'review' },
-          { id: 'verify', label: 'Verify', role: 'reviewer', status: 'verification' },
+          { id: 'review', label: 'Review', role: 'reviewer', status: 'review' },
+          { id: 'learn', label: 'Learn', role: 'learner', status: 'verification' },
           { id: 'done', label: 'Done', role: null, status: 'done' },
         ]),
         JSON.stringify({ testing: 'in_progress', review: 'in_progress', verification: 'in_progress' }),

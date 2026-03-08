@@ -243,15 +243,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const isBuilder = !currentStage || currentStage.role === 'builder' || task.status === 'assigned';
     const isTester = currentStage?.role === 'tester';
+    const isLearner = currentStage?.role === 'learner';
     const isVerifier = currentStage?.role === 'verifier' || currentStage?.role === 'reviewer';
     const nextStatus = nextStage?.status || 'review';
     const failEndpoint = `POST ${missionControlUrl}/api/tasks/${task.id}/fail`;
 
     let completionInstructions: string;
     if (isBuilder) {
-      completionInstructions = `**IMPORTANT:** After completing work, you MUST call these APIs:
+      completionInstructions = `**YOUR ROLE: BUILDER** — Read project docs first, then plan and implement.
+
+Before coding:
+- Read relevant project docs (e.g. PROJECT_CRITICALS.md, feature docs, task context).
+- State your implementation plan briefly in activity logs.
+
+After completing work, you MUST call these APIs:
 1. Log activity: POST ${missionControlUrl}/api/tasks/${task.id}/activities
-   Body: {"activity_type": "completed", "message": "Description of what was done"}
+   Body: {"activity_type": "completed", "message": "Description of what was done + key files changed"}
 2. Register deliverable: POST ${missionControlUrl}/api/tasks/${task.id}/deliverables
    Body: {"deliverable_type": "file", "title": "File name", "path": "${taskProjectDir}/filename.html"}
 3. Update status: PATCH ${missionControlUrl}/api/tasks/${task.id}
@@ -260,9 +267,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 When complete, reply with:
 \`TASK_COMPLETE: [brief summary of what you did]\``;
     } else if (isTester) {
-      completionInstructions = `**YOUR ROLE: TESTER** — Test the deliverables for this task.
+      completionInstructions = `**YOUR ROLE: TESTER** — Test based on builder's changes (git diff) and deliverables.
 
-Review the output directory for deliverables and run any applicable tests.
+Review builder's changed files / git diff and run applicable tests for impacted surfaces.
 
 **If tests PASS:**
 1. Log activity: POST ${missionControlUrl}/api/tasks/${task.id}/activities
@@ -275,6 +282,28 @@ Review the output directory for deliverables and run any applicable tests.
    Body: {"reason": "Detailed description of what failed and what needs fixing"}
 
 Reply with: \`TEST_PASS: [summary]\` or \`TEST_FAIL: [what failed]\``;
+    } else if (isLearner) {
+      completionInstructions = `**YOUR ROLE: LEARNER** — Document what mattered and what should be reused.
+
+Review final implementation + tests and produce concise learning artifacts:
+- key decisions and trade-offs
+- pitfalls/bugs fixed
+- reusable patterns/checklists/templates
+- what to monitor next
+
+If documentation is sufficient:
+1. Log activity: POST ${missionControlUrl}/api/tasks/${task.id}/activities
+   Body: {"activity_type": "completed", "message": "Learner summary: key learnings documented"}
+2. Register deliverable: POST ${missionControlUrl}/api/tasks/${task.id}/deliverables
+   Body: {"deliverable_type": "documentation", "title": "Learning Notes", "path": "${taskProjectDir}/PROJECT_CRITICALS.md"}
+3. Update status: PATCH ${missionControlUrl}/api/tasks/${task.id}
+   Body: {"status": "${nextStatus}"}
+
+If documentation is missing critical context:
+1. ${failEndpoint}
+   Body: {"reason": "Missing critical documentation/learning artifacts"}
+
+Reply with: \`LEARN_DONE: [summary]\` or \`LEARN_FAIL: [what is missing]\``;
     } else if (isVerifier) {
       completionInstructions = `**YOUR ROLE: VERIFIER** — Verify that all work meets quality standards.
 
