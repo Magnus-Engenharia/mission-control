@@ -932,6 +932,21 @@ const migrations: Migration[] = [
     }
   },
   {
+    id: '027',
+    name: 'learner_dispatch_to_codex',
+    up: (db) => {
+      console.log('[Migration 027] Routing learner agents to codex...');
+      db.exec(`
+        UPDATE agents
+        SET gateway_agent_id = 'codex',
+            session_key_prefix = 'agent:codex:',
+            updated_at = datetime('now')
+        WHERE role = 'learner';
+      `);
+      console.log('[Migration 027] learner agents now route to codex');
+    }
+  },
+  {
     id: '026',
     name: 'objectives_track',
     up: (db) => {
