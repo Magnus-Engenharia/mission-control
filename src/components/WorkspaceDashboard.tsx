@@ -195,12 +195,14 @@ function WorkspaceCard({ workspace, onDelete, onUpdated }: { workspace: Workspac
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState(workspace.description || '');
+  const [phaseDraft, setPhaseDraft] = useState<'mvp' | 'growth' | 'stabilizing'>(workspace.default_phase || 'mvp');
   const [savingDescription, setSavingDescription] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setDescriptionDraft(workspace.description || '');
-  }, [workspace.description]);
+    setPhaseDraft(workspace.default_phase || 'mvp');
+  }, [workspace.description, workspace.default_phase]);
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -230,7 +232,7 @@ function WorkspaceCard({ workspace, onDelete, onUpdated }: { workspace: Workspac
       const res = await fetch(`/api/workspaces/${workspace.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: descriptionDraft.trim() || null }),
+        body: JSON.stringify({ description: descriptionDraft.trim() || null, default_phase: phaseDraft }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -268,6 +270,15 @@ function WorkspaceCard({ workspace, onDelete, onUpdated }: { workspace: Workspac
                     className="w-full bg-mc-bg border border-mc-border rounded px-2 py-1 text-xs focus:outline-none focus:border-mc-accent resize-y"
                     placeholder="Dashboard description"
                   />
+                  <select
+                    value={phaseDraft}
+                    onChange={(e) => setPhaseDraft(e.target.value as 'mvp' | 'growth' | 'stabilizing')}
+                    className="mt-1 w-full bg-mc-bg border border-mc-border rounded px-2 py-1 text-xs focus:outline-none focus:border-mc-accent"
+                  >
+                    <option value="mvp">Phase: MVP</option>
+                    <option value="growth">Phase: Growth</option>
+                    <option value="stabilizing">Phase: Stabilizing</option>
+                  </select>
                   <div className="flex gap-1 mt-1">
                     <button
                       onClick={saveDescription}
@@ -278,7 +289,7 @@ function WorkspaceCard({ workspace, onDelete, onUpdated }: { workspace: Workspac
                       <Check className="w-3 h-3" />
                     </button>
                     <button
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingDescription(false); setDescriptionDraft(workspace.description || ''); }}
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingDescription(false); setDescriptionDraft(workspace.description || ''); setPhaseDraft(workspace.default_phase || 'mvp'); }}
                       className="p-1 rounded bg-mc-bg hover:bg-mc-bg-tertiary text-mc-text-secondary"
                       title="Cancel"
                     >
@@ -287,7 +298,10 @@ function WorkspaceCard({ workspace, onDelete, onUpdated }: { workspace: Workspac
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-mc-text-secondary mt-1">{workspace.description || 'No description yet.'}</p>
+                <>
+                  <p className="text-xs text-mc-text-secondary mt-1">{workspace.description || 'No description yet.'}</p>
+                  <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-mc-bg-tertiary border border-mc-border text-mc-text-secondary">Phase: {(workspace.default_phase || 'mvp').toUpperCase()}</span>
+                </>
               )}
             </div>
           </div>
@@ -382,6 +396,7 @@ function WorkspaceCard({ workspace, onDelete, onUpdated }: { workspace: Workspac
 function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [defaultPhase, setDefaultPhase] = useState<'mvp' | 'growth' | 'stabilizing'>('mvp');
   const [icon, setIcon] = useState('📁');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -402,7 +417,7 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
       const res = await fetch('/api/workspaces', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), description: description.trim() || null, icon }),
+        body: JSON.stringify({ name: name.trim(), description: description.trim() || null, default_phase: defaultPhase, icon }),
       });
 
       if (res.ok) {
@@ -499,6 +514,19 @@ function CreateWorkspaceModal({ onClose, onCreated }: { onClose: () => void; onC
               rows={3}
               className="w-full bg-mc-bg border border-mc-border rounded-lg px-4 py-2 focus:outline-none focus:border-mc-accent resize-y"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Default Phase</label>
+            <select
+              value={defaultPhase}
+              onChange={(e) => setDefaultPhase(e.target.value as 'mvp' | 'growth' | 'stabilizing')}
+              className="w-full bg-mc-bg border border-mc-border rounded-lg px-4 py-2 focus:outline-none focus:border-mc-accent"
+            >
+              <option value="mvp">MVP</option>
+              <option value="growth">Growth</option>
+              <option value="stabilizing">Stabilizing</option>
+            </select>
           </div>
 
           <div>

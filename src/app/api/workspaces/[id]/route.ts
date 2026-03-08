@@ -37,7 +37,7 @@ export async function PATCH(
   
   try {
     const body = await request.json();
-    const { name, description, icon } = body;
+    const { name, description, icon, default_phase } = body;
     
     const db = getDb();
     
@@ -62,6 +62,14 @@ export async function PATCH(
     if (icon !== undefined) {
       updates.push('icon = ?');
       values.push(icon);
+    }
+    if (default_phase !== undefined) {
+      const allowed = new Set(['mvp', 'growth', 'stabilizing']);
+      if (!allowed.has(default_phase)) {
+        return NextResponse.json({ error: 'Invalid default_phase' }, { status: 400 });
+      }
+      updates.push('default_phase = ?');
+      values.push(default_phase);
     }
     
     if (updates.length === 0) {

@@ -24,6 +24,22 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
     const now = new Date().toISOString();
     const description = [idea.summary || '', idea.source ? `\nSource: ${idea.source}` : ''].join('').trim();
 
+    let phaseTag: 'mvp' | 'growth' | 'stabilizing' = 'mvp';
+    try {
+      const tags: string[] = JSON.parse(idea.tags_json || '[]');
+      if (tags.includes('phase:growth')) phaseTag = 'growth';
+      if (tags.includes('phase:stabilizing')) phaseTag = 'stabilizing';
+      if (tags.includes('phase:mvp')) phaseTag = 'mvp';
+    } catch {
+      // keep default
+    }
+
+    const priorityByPhase: Record<typeof phaseTag, 'high' | 'normal'> = {
+      mvp: 'high',
+      growth: 'normal',
+      stabilizing: 'high',
+    };
+
     let targetWorkspaceId = idea.workspace_id;
     let projectId: string | null = (idea as Idea).project_id || null;
 
@@ -46,8 +62,8 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
 
       const workspaceId = crypto.randomUUID();
       db.prepare(
-        'INSERT INTO workspaces (id, name, slug, icon, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-      ).run(workspaceId, rawName, finalSlug, '💡', 'Created from idea', now, now);
+        'INSERT INTO workspaces (id, name, slug, icon, description, default_phase, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(workspaceId, rawName, finalSlug, '💡', 'Created from idea', phaseTag, now, now);
 
       const projectIdGenerated = crypto.randomUUID();
       const projectSlug = slugify(rawName) || finalSlug;
@@ -64,8 +80,8 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
 
     run(
       `INSERT INTO tasks (id, title, description, status, priority, workspace_id, project_id, created_at, updated_at)
-       VALUES (?, ?, ?, 'planning', 'normal', ?, ?, ?, ?)`,
-      [taskId, idea.title, description || null, targetWorkspaceId, projectId, now, now]
+       VALUES (?, ?, ?, 'planning', ?, ?, ?, ?, ?)`,
+      [taskId, idea.title, description || null, priorityByPhase[phaseTag], targetWorkspaceId, projectId, now, now]
     );
 
     run('DELETE FROM ideas WHERE id = ?', [id]);

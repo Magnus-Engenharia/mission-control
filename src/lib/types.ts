@@ -134,6 +134,7 @@ export interface Workspace {
   name: string;
   slug: string;
   description?: string;
+  default_phase?: 'mvp' | 'growth' | 'stabilizing';
   icon: string;
   created_at: string;
   updated_at: string;
@@ -189,6 +190,7 @@ export interface WorkspaceStats {
   slug: string;
   icon: string;
   description?: string | null;
+  default_phase?: 'mvp' | 'growth' | 'stabilizing';
   taskCounts: {
     pending_dispatch: number;
     planning: number;

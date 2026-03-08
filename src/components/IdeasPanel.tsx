@@ -13,6 +13,7 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
   const [newIdea, setNewIdea] = useState({ title: '', summary: '', tags: '', score: '', isNewDashboard: false, project_id: '', phase: 'mvp' as 'mvp' | 'growth' | 'stabilizing' });
   const [projects, setProjects] = useState<Project[]>([]);
   const [phaseFilter, setPhaseFilter] = useState<'all' | 'mvp' | 'growth' | 'stabilizing'>('all');
+  const [workspaceDefaultPhase, setWorkspaceDefaultPhase] = useState<'mvp' | 'growth' | 'stabilizing'>('mvp');
 
   const loadIdeas = async () => {
     setLoading(true);
@@ -49,6 +50,24 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
     loadIdeas();
     loadProjects();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId]);
+
+  useEffect(() => {
+    const loadWorkspaceMeta = async () => {
+      try {
+        const res = await fetch(`/api/workspaces/${workspaceId}`);
+        if (!res.ok) return;
+        const ws = await res.json();
+        const phase = ws?.default_phase;
+        if (phase === 'mvp' || phase === 'growth' || phase === 'stabilizing') {
+          setWorkspaceDefaultPhase(phase);
+          setNewIdea((prev) => ({ ...prev, phase }));
+        }
+      } catch {
+        // ignore
+      }
+    };
+    loadWorkspaceMeta();
   }, [workspaceId]);
 
   useEffect(() => {
@@ -247,7 +266,7 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
                 onChange={(e) => setNewIdea((p) => ({ ...p, phase: e.target.value as 'mvp' | 'growth' | 'stabilizing' }))}
                 className="w-full min-h-10 bg-mc-bg border border-mc-border rounded px-2 text-sm"
               >
-                <option value="mvp">Phase: MVP</option>
+                <option value="mvp">Phase: MVP{workspaceDefaultPhase === 'mvp' ? ' (default)' : ''}</option>
                 <option value="growth">Phase: Growth</option>
                 <option value="stabilizing">Phase: Stabilizing</option>
               </select>

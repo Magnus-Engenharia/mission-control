@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
           slug: workspace.slug,
           icon: workspace.icon,
           description: workspace.description,
+          default_phase: (workspace as Workspace & { default_phase?: 'mvp' | 'growth' | 'stabilizing' }).default_phase || 'mvp',
           taskCounts: counts,
           agentCount: agentCount.count
         };
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, description, icon, seed_default_agents } = body;
+    const { name, description, icon, seed_default_agents, default_phase } = body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
@@ -98,10 +99,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'A workspace with this name already exists' }, { status: 400 });
     }
 
+    const allowedPhases = new Set(['mvp', 'growth', 'stabilizing']);
+    const defaultPhase = allowedPhases.has(default_phase) ? default_phase : 'mvp';
+
     db.prepare(`
-      INSERT INTO workspaces (id, name, slug, description, icon)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(id, name.trim(), slug, description || null, icon || '📁');
+      INSERT INTO workspaces (id, name, slug, description, default_phase, icon)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(id, name.trim(), slug, description || null, defaultPhase, icon || '📁');
 
     // Clone workflow templates and optionally bootstrap core agents for the new workspace
     cloneWorkflowTemplates(db, id);

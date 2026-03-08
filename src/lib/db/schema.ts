@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS workspaces (
   name TEXT NOT NULL,
   slug TEXT NOT NULL UNIQUE,
   description TEXT,
+  default_phase TEXT DEFAULT 'mvp' CHECK (default_phase IN ('mvp','growth','stabilizing')),
   icon TEXT DEFAULT '📁',
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))

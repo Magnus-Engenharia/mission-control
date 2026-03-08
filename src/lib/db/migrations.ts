@@ -932,6 +932,19 @@ const migrations: Migration[] = [
     }
   },
   {
+    id: '023',
+    name: 'workspace_default_phase',
+    up: (db) => {
+      console.log('[Migration 023] Adding workspaces.default_phase...');
+      const info = db.prepare('PRAGMA table_info(workspaces)').all() as { name: string }[];
+      if (!info.some((c) => c.name === 'default_phase')) {
+        db.exec("ALTER TABLE workspaces ADD COLUMN default_phase TEXT DEFAULT 'mvp' CHECK (default_phase IN ('mvp','growth','stabilizing'))");
+      }
+      db.exec("UPDATE workspaces SET default_phase = COALESCE(default_phase, 'mvp')");
+      console.log('[Migration 023] workspaces.default_phase ready');
+    }
+  },
+  {
     id: '020',
     name: 'normalize_default_workflow_templates',
     up: (db) => {
