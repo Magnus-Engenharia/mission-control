@@ -932,6 +932,33 @@ const migrations: Migration[] = [
     }
   },
   {
+    id: '024',
+    name: 'objectives_table',
+    up: (db) => {
+      console.log('[Migration 024] Creating objectives table...');
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS objectives (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES workspaces(id),
+          project_id TEXT NOT NULL REFERENCES projects(id),
+          title TEXT NOT NULL,
+          description TEXT,
+          phase TEXT DEFAULT 'mvp' CHECK (phase IN ('mvp','growth','stabilizing')),
+          status TEXT DEFAULT 'draft' CHECK (status IN ('draft','planning','ready','approved','cancelled')),
+          planner_session_key TEXT,
+          planner_messages TEXT,
+          planner_opinion TEXT,
+          viability_score INTEGER,
+          draft_tasks_json TEXT,
+          approved_at TEXT,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now'))
+        );
+      `);
+      console.log('[Migration 024] objectives table ready');
+    }
+  },
+  {
     id: '023',
     name: 'workspace_default_phase',
     up: (db) => {

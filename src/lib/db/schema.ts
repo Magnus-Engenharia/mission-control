@@ -41,6 +41,25 @@ CREATE TABLE IF NOT EXISTS projects (
   UNIQUE(workspace_id, slug)
 );
 
+-- Objectives table
+CREATE TABLE IF NOT EXISTS objectives (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id),
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  title TEXT NOT NULL,
+  description TEXT,
+  phase TEXT DEFAULT 'mvp' CHECK (phase IN ('mvp','growth','stabilizing')),
+  status TEXT DEFAULT 'draft' CHECK (status IN ('draft','planning','ready','approved','cancelled')),
+  planner_session_key TEXT,
+  planner_messages TEXT,
+  planner_opinion TEXT,
+  viability_score INTEGER,
+  draft_tasks_json TEXT,
+  approved_at TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
 -- Ideas table
 CREATE TABLE IF NOT EXISTS ideas (
   id TEXT PRIMARY KEY,
