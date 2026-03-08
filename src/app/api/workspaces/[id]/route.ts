@@ -149,6 +149,7 @@ export async function DELETE(
       // Project/idea graph
       db.prepare('DELETE FROM idea_comments WHERE idea_id IN (SELECT id FROM ideas WHERE workspace_id = ?)').run(workspaceId);
       db.prepare('DELETE FROM ideas WHERE workspace_id = ?').run(workspaceId);
+      db.prepare('DELETE FROM objectives WHERE workspace_id = ?').run(workspaceId);
       db.prepare('DELETE FROM projects WHERE workspace_id = ?').run(workspaceId);
 
       // Templates must be removed after tasks (tasks may reference workflow_template_id)
