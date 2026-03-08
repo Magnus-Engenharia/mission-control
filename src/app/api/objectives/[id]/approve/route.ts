@@ -79,16 +79,14 @@ export async function POST(
         throw new Error('No valid task drafts to create');
       }
 
-      db.prepare(
-        `UPDATE objectives SET status = 'approved', approved_at = datetime('now'), updated_at = datetime('now') WHERE id = ?`
-      ).run(id);
+      db.prepare('DELETE FROM objectives WHERE id = ?').run(id);
     });
 
     tx();
 
     const createdTasks = queryAll('SELECT * FROM tasks WHERE project_id = ? ORDER BY created_at DESC LIMIT 50', [objective.project_id]);
 
-    return NextResponse.json({ success: true, created_count: created, tasks: createdTasks });
+    return NextResponse.json({ success: true, deleted_objective: true, created_count: created, tasks: createdTasks });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to approve objective: ' + (error as Error).message }, { status: 500 });
   }
