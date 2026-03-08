@@ -129,6 +129,26 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
     }
   };
 
+  const deleteObjective = async (objectiveId: string) => {
+    if (!confirm('Delete this objective?')) return;
+    setObjectiveLoading(true);
+    try {
+      const res = await fetch(`/api/objectives/${objectiveId}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data?.error || 'Failed to delete objective');
+        return;
+      }
+      if (currentObjectiveId === objectiveId) {
+        setCurrentObjectiveId('');
+        setObjectivePreview(null);
+      }
+      await loadObjectives();
+    } finally {
+      setObjectiveLoading(false);
+    }
+  };
+
   const approveObjective = async () => {
     if (!currentObjectiveId) return;
     setObjectiveLoading(true);
@@ -296,8 +316,8 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
   };
 
   return (
-    <div className={`h-${fullHeight ? 'full' : 'full'} flex min-w-0${fullHeight ? '' : ''}`}>
-      <div className="w-[42%] min-w-[300px] border-r border-mc-border p-3 overflow-y-auto">
+    <div className={`h-${fullHeight ? 'full' : 'full'} min-h-0 flex min-w-0${fullHeight ? '' : ''}`}>
+      <div className="w-[42%] min-w-[300px] min-h-0 border-r border-mc-border p-3 overflow-y-auto">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-1">
             <button
@@ -407,14 +427,26 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
               <div className="text-xs text-mc-text-secondary">Nenhum objetivo ainda.</div>
             ) : (
               objectives.slice(0, 8).map((obj) => (
-                <button
+                <div
                   key={obj.id}
-                  onClick={() => { setCurrentObjectiveId(obj.id); setObjectivePreview(null); }}
-                  className={`w-full text-left p-2 rounded border ${currentObjectiveId === obj.id ? 'border-mc-accent bg-mc-accent/10' : 'border-mc-border bg-mc-bg-secondary'} hover:border-mc-accent/60`}
+                  className={`w-full p-2 rounded border ${currentObjectiveId === obj.id ? 'border-mc-accent bg-mc-accent/10' : 'border-mc-border bg-mc-bg-secondary'} hover:border-mc-accent/60`}
                 >
-                  <div className="text-sm text-mc-text">{obj.title}</div>
-                  <div className="text-xs text-mc-text-secondary">{(obj.phase || 'mvp').toUpperCase()} · {obj.status || 'draft'}</div>
-                </button>
+                  <button
+                    onClick={() => { setCurrentObjectiveId(obj.id); setObjectivePreview(null); }}
+                    className="w-full text-left"
+                  >
+                    <div className="text-sm text-mc-text">{obj.title}</div>
+                    <div className="text-xs text-mc-text-secondary">{(obj.phase || 'mvp').toUpperCase()} · {obj.status || 'draft'}</div>
+                  </button>
+                  <div className="mt-1 flex justify-end">
+                    <button
+                      onClick={() => deleteObjective(obj.id)}
+                      className="text-[10px] px-1.5 py-0.5 rounded border border-mc-border hover:border-red-500/50 text-mc-text-secondary hover:text-red-300"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
               ))
             )}
           </div>
@@ -550,7 +582,7 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
         )}
       </div>
 
-      <div className="flex-1 p-4 overflow-y-auto">
+      <div className="flex-1 min-h-0 p-4 overflow-y-auto pb-24">
         {activeSection === 'objectives' ? (
           <div className="space-y-3">
             <h3 className="text-lg font-semibold">Objetivos do Projeto</h3>
