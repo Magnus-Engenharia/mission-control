@@ -289,6 +289,35 @@ MVP RELEASE RULE (mandatory when this stage approves):
 - If push fails, report via fail endpoint with exact reason.`
       : '';
 
+    const taskText = `${task.title || ''} ${task.description || ''}`.toLowerCase();
+    const isUiUxTask = (task as Task & { target?: string }).target === 'web' || (task as Task & { target?: string }).target === 'mobile' || /(ui|ux|frontend|screen|form|layout|dashboard|onboarding|design system|component)/i.test(taskText);
+
+    const uiBuilderRequirements = isUiUxTask
+      ? `
+UI/UX REQUIRED OUTPUTS (mandatory for this task):
+- UX flow summary (main path + edge/error path)
+- UI states covered: normal/loading/error/empty/success
+- Accessibility baseline: keyboard navigation + labels/aria + contrast notes
+- Responsive note: mobile + desktop behavior
+- Include these in completion activity message.`
+      : '';
+
+    const uiReviewerGate = isUiUxTask
+      ? `
+UI/UX REVIEW GATE (mandatory):
+- Do NOT pass verification unless evidence includes state coverage (normal/loading/error/empty/success)
+- Do NOT pass verification without accessibility baseline notes
+- If missing, fail back with precise missing checklist items.`
+      : '';
+
+    const uiLearnerDoc = isUiUxTask
+      ? `
+For UI/UX tasks, learner notes must also include:
+- reusable UI pattern extracted
+- UX anti-pattern avoided
+- accessibility lesson learned`
+      : '';
+
     let completionInstructions: string;
     if (isBuilder) {
       completionInstructions = `**YOUR ROLE: BUILDER** — Read project docs first, then plan and implement.
@@ -296,6 +325,7 @@ MVP RELEASE RULE (mandatory when this stage approves):
 Before coding:
 - Read relevant project docs (e.g. PROJECT_CRITICALS.md, feature docs, task context).
 - State your implementation plan briefly in activity logs.
+${uiBuilderRequirements}
 
 After completing work, you MUST call these APIs:
 1. Log activity: POST ${missionControlUrl}/api/tasks/${task.id}/activities
@@ -341,6 +371,7 @@ Minimum required actions before completion:
    - known risks / follow-ups
    - reusable checklist/pattern
 3) If API/contracts involved, also update/create ${taskProjectDir}/PROJECT_FEATURES.md with a concise delta note.
+${uiLearnerDoc}
 
 Completion criteria (must satisfy all):
 - Documentation file(s) actually updated in repo
@@ -365,6 +396,7 @@ Reply with: \`LEARN_DONE: [summary + files updated]\` or \`LEARN_FAIL: [what is 
       completionInstructions = `**YOUR ROLE: VERIFIER** — Verify that all work meets quality standards.
 
 Review deliverables, test results, and task requirements.
+${uiReviewerGate}
 
 **If verification PASSES:**
 1. Log activity: POST ${missionControlUrl}/api/tasks/${task.id}/activities
