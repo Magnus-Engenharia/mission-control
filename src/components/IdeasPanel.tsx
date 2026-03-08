@@ -14,6 +14,12 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
   const [projects, setProjects] = useState<Project[]>([]);
   const [phaseFilter, setPhaseFilter] = useState<'all' | 'mvp' | 'growth' | 'stabilizing'>('all');
   const [workspaceDefaultPhase, setWorkspaceDefaultPhase] = useState<'mvp' | 'growth' | 'stabilizing'>('mvp');
+  const [showObjectiveCreate, setShowObjectiveCreate] = useState(false);
+  const [objectiveLoading, setObjectiveLoading] = useState(false);
+  const [objectivePreview, setObjectivePreview] = useState<any | null>(null);
+  const [currentObjectiveId, setCurrentObjectiveId] = useState<string>('');
+  const [objectiveMessage, setObjectiveMessage] = useState('');
+  const [newObjective, setNewObjective] = useState({ title: '', description: '', phase: 'mvp' as 'mvp' | 'growth' | 'stabilizing', project_id: '' });
 
   const loadIdeas = async () => {
     setLoading(true);
@@ -41,8 +47,91 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
     if (res.ok) {
       const data = await res.json();
       setProjects(Array.isArray(data) ? data : []);
+      if (Array.isArray(data) && data.length > 0 && !newObjective.project_id) {
+        setNewObjective((prev) => ({ ...prev, project_id: data[0].id }));
+      }
     } else {
       setProjects([]);
+    }
+  };
+
+  const createObjective = async () => {
+    if (!newObjective.project_id || !newObjective.title.trim()) return;
+    setObjectiveLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${newObjective.project_id}/objectives`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newObjective.title.trim(),
+          description: newObjective.description.trim(),
+          phase: newObjective.phase,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err?.error || 'Failed to create objective');
+        return;
+      }
+      const data = await res.json();
+      setCurrentObjectiveId(data.id);
+      setObjectivePreview(null);
+      setShowObjectiveCreate(false);
+    } finally {
+      setObjectiveLoading(false);
+    }
+  };
+
+  const pollObjective = async () => {
+    if (!currentObjectiveId) return;
+    setObjectiveLoading(true);
+    try {
+      const res = await fetch(`/api/objectives/${currentObjectiveId}/poll`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data?.hasUpdates) setObjectivePreview(data);
+    } finally {
+      setObjectiveLoading(false);
+    }
+  };
+
+  const sendObjectiveMessage = async () => {
+    if (!currentObjectiveId || !objectiveMessage.trim()) return;
+    setObjectiveLoading(true);
+    try {
+      const res = await fetch(`/api/objectives/${currentObjectiveId}/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: objectiveMessage.trim() }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err?.error || 'Failed to send message');
+        return;
+      }
+      setObjectiveMessage('');
+      await pollObjective();
+    } finally {
+      setObjectiveLoading(false);
+    }
+  };
+
+  const approveObjective = async () => {
+    if (!currentObjectiveId) return;
+    setObjectiveLoading(true);
+    try {
+      const res = await fetch(`/api/objectives/${currentObjectiveId}/approve`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data?.error || 'Failed to approve objective');
+        return;
+      }
+      alert(`Created ${data?.created_count || 0} tasks from objective`);
+      await loadIdeas();
+      setCurrentObjectiveId('');
+      setObjectivePreview(null);
+    } finally {
+      setObjectiveLoading(false);
     }
   };
 
@@ -190,13 +279,88 @@ export function IdeasPanel({ workspaceId = 'default', scope = 'dashboard', fullH
       <div className="w-[42%] min-w-[300px] border-r border-mc-border p-3 overflow-y-auto">
         <div className="flex items-center justify-between mb-3">
           <div className="text-xs uppercase tracking-wider text-mc-text-secondary">Ideias</div>
-          <button
-            onClick={() => setShowCreate((v) => !v)}
-            className="min-h-9 px-2.5 text-xs bg-mc-accent-pink text-mc-bg rounded hover:bg-mc-accent-pink/90"
-          >
-            + Nova Ideia
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setShowObjectiveCreate((v) => !v)}
+              className="min-h-9 px-2.5 text-xs bg-mc-accent text-mc-bg rounded hover:bg-mc-accent/90"
+            >
+              + Novo Objetivo
+            </button>
+            <button
+              onClick={() => setShowCreate((v) => !v)}
+              className="min-h-9 px-2.5 text-xs bg-mc-accent-pink text-mc-bg rounded hover:bg-mc-accent-pink/90"
+            >
+              + Nova Ideia
+            </button>
+          </div>
         </div>
+
+        {showObjectiveCreate && (
+          <div className="mb-3 p-2.5 border border-mc-border rounded bg-mc-bg-secondary space-y-2">
+            <input
+              value={newObjective.title}
+              onChange={(e) => setNewObjective((p) => ({ ...p, title: e.target.value }))}
+              placeholder="Objective title"
+              className="w-full min-h-10 bg-mc-bg border border-mc-border rounded px-2 text-sm"
+            />
+            <textarea
+              value={newObjective.description}
+              onChange={(e) => setNewObjective((p) => ({ ...p, description: e.target.value }))}
+              placeholder="Objective details"
+              className="w-full min-h-16 bg-mc-bg border border-mc-border rounded px-2 py-1.5 text-sm"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={newObjective.project_id}
+                onChange={(e) => setNewObjective((p) => ({ ...p, project_id: e.target.value }))}
+                className="w-full min-h-10 bg-mc-bg border border-mc-border rounded px-2 text-sm"
+              >
+                <option value="">Select project</option>
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>{project.name}</option>
+                ))}
+              </select>
+              <select
+                value={newObjective.phase}
+                onChange={(e) => setNewObjective((p) => ({ ...p, phase: e.target.value as 'mvp' | 'growth' | 'stabilizing' }))}
+                className="w-full min-h-10 bg-mc-bg border border-mc-border rounded px-2 text-sm"
+              >
+                <option value="mvp">MVP</option>
+                <option value="growth">Growth</option>
+                <option value="stabilizing">Stabilizing</option>
+              </select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowObjectiveCreate(false)} className="min-h-10 px-3 text-xs border border-mc-border rounded">Cancel</button>
+              <button onClick={createObjective} disabled={objectiveLoading} className="min-h-10 px-3 text-xs bg-mc-accent text-mc-bg rounded">Start Objective</button>
+            </div>
+          </div>
+        )}
+
+        {currentObjectiveId && (
+          <div className="mb-3 p-2.5 border border-mc-border rounded bg-mc-bg-secondary space-y-2">
+            <div className="text-xs text-mc-text-secondary">Objective session: {currentObjectiveId.slice(0, 8)}...</div>
+            <div className="flex gap-2">
+              <button onClick={pollObjective} disabled={objectiveLoading} className="min-h-9 px-2 text-xs border border-mc-border rounded">Refresh Preview</button>
+              <button onClick={approveObjective} disabled={objectiveLoading || !objectivePreview?.task_drafts?.length} className="min-h-9 px-2 text-xs bg-mc-accent text-mc-bg rounded">Approve & Create Tasks</button>
+            </div>
+            {objectivePreview && (
+              <div className="text-xs space-y-1 text-mc-text-secondary">
+                <div><b>Viability:</b> {objectivePreview.viability_score ?? 'N/A'} — {objectivePreview.viability_opinion || '-'}</div>
+                <div><b>Draft tasks:</b> {Array.isArray(objectivePreview.task_drafts) ? objectivePreview.task_drafts.length : 0}</div>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                value={objectiveMessage}
+                onChange={(e) => setObjectiveMessage(e.target.value)}
+                placeholder="Discuss with Master Planner (e.g. split task 3 smaller)"
+                className="flex-1 min-h-10 bg-mc-bg border border-mc-border rounded px-2 text-sm"
+              />
+              <button onClick={sendObjectiveMessage} disabled={objectiveLoading || !objectiveMessage.trim()} className="min-h-10 px-3 text-xs bg-mc-accent-pink text-mc-bg rounded">Send</button>
+            </div>
+          </div>
+        )}
 
         <div className="mb-3 flex flex-wrap gap-1.5">
           {(['all', 'mvp', 'growth', 'stabilizing'] as const).map((phase) => (
