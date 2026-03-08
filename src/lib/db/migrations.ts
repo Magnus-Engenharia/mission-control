@@ -932,6 +932,19 @@ const migrations: Migration[] = [
     }
   },
   {
+    id: '025',
+    name: 'workspace_bypass_tester',
+    up: (db) => {
+      console.log('[Migration 025] Adding workspaces.bypass_tester...');
+      const info = db.prepare('PRAGMA table_info(workspaces)').all() as { name: string }[];
+      if (!info.some((c) => c.name === 'bypass_tester')) {
+        db.exec("ALTER TABLE workspaces ADD COLUMN bypass_tester INTEGER DEFAULT 0");
+      }
+      db.exec("UPDATE workspaces SET bypass_tester = COALESCE(bypass_tester, 0)");
+      console.log('[Migration 025] workspaces.bypass_tester ready');
+    }
+  },
+  {
     id: '024',
     name: 'objectives_table',
     up: (db) => {

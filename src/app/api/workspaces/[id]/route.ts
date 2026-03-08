@@ -37,7 +37,7 @@ export async function PATCH(
   
   try {
     const body = await request.json();
-    const { name, description, icon, default_phase } = body;
+    const { name, description, icon, default_phase, bypass_tester } = body;
     
     const db = getDb();
     
@@ -70,6 +70,10 @@ export async function PATCH(
       }
       updates.push('default_phase = ?');
       values.push(default_phase);
+    }
+    if (bypass_tester !== undefined) {
+      updates.push('bypass_tester = ?');
+      values.push(bypass_tester ? 1 : 0);
     }
     
     if (updates.length === 0) {

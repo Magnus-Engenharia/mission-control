@@ -63,6 +63,7 @@ export async function GET(request: NextRequest) {
           icon: workspace.icon,
           description: workspace.description,
           default_phase: (workspace as Workspace & { default_phase?: 'mvp' | 'growth' | 'stabilizing' }).default_phase || 'mvp',
+          bypass_tester: Boolean((workspace as Workspace & { bypass_tester?: number }).bypass_tester),
           taskCounts: counts,
           agentCount: agentCount.count
         };
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, description, icon, seed_default_agents, default_phase } = body;
+    const { name, description, icon, seed_default_agents, default_phase, bypass_tester } = body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
@@ -103,9 +104,9 @@ export async function POST(request: NextRequest) {
     const defaultPhase = allowedPhases.has(default_phase) ? default_phase : 'mvp';
 
     db.prepare(`
-      INSERT INTO workspaces (id, name, slug, description, default_phase, icon)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(id, name.trim(), slug, description || null, defaultPhase, icon || '📁');
+      INSERT INTO workspaces (id, name, slug, description, default_phase, bypass_tester, icon)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(id, name.trim(), slug, description || null, defaultPhase, bypass_tester ? 1 : 0, icon || '📁');
 
     // Clone workflow templates and optionally bootstrap core agents for the new workspace
     cloneWorkflowTemplates(db, id);

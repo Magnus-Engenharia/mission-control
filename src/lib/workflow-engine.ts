@@ -112,10 +112,36 @@ export async function handleStageTransition(
   }
 
   // Find the stage that maps to this status
-  const targetStage = workflow.stages.find(s => s.status === newStatus);
+  let targetStage = workflow.stages.find(s => s.status === newStatus);
   if (!targetStage) {
     // Status not in workflow
     return { success: true, handedOff: false };
+  }
+
+  // Optional tester bypass: in some workspaces we skip tester stage and move straight to reviewer.
+  if (targetStage.role === 'tester') {
+    const taskMeta = queryOne<{ workspace_id: string }>('SELECT workspace_id FROM tasks WHERE id = ?', [taskId]);
+    const ws = taskMeta
+      ? queryOne<{ bypass_tester?: number }>('SELECT bypass_tester FROM workspaces WHERE id = ?', [taskMeta.workspace_id])
+      : null;
+
+    if (Boolean(ws?.bypass_tester)) {
+      const reviewerStage = workflow.stages.find((s) => s.role === 'reviewer') || workflow.stages.find((s) => s.status === 'review');
+      if (reviewerStage) {
+        const now = new Date().toISOString();
+        run(
+          `UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?`,
+          [reviewerStage.status, now, taskId]
+        );
+        run(
+          `INSERT INTO task_activities (id, task_id, activity_type, message, created_at)
+           VALUES (?, ?, 'status_changed', ?, ?)`,
+          [crypto.randomUUID(), taskId, 'Tester bypass enabled: moved directly from testing to review.', now]
+        );
+        newStatus = reviewerStage.status;
+        targetStage = reviewerStage;
+      }
+    }
   }
 
   if (!targetStage.role) {
