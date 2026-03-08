@@ -82,6 +82,7 @@ export async function POST(
       description: string;
       status: string;
       workspace_id: string;
+      target?: 'fullstack' | 'web' | 'api' | 'mobile';
       workflow_template_id?: string | null;
       project_id?: string | null;
       planning_session_key?: string;
@@ -179,6 +180,7 @@ export async function POST(
 
 Task Title: ${task.title}
 Task Description: ${task.description || 'No description provided'}
+Current target hint: ${task.target || 'fullstack'}
 Workspace: ${workspaceMeta?.name || task.workspace_id}
 Workspace default phase: ${phase}
 Selected base workflow template: ${selectedTemplate?.name || 'None'}
@@ -190,10 +192,13 @@ Follow the planning protocol in PLANNING.md (repo root) and apply these rules:
 - Use the selected base workflow template as the default execution backbone (do not ignore it).
 - Ask focused, task-specific multiple-choice questions.
 - Include an "Other" option.
+- You MUST explicitly confirm required implementation surfaces using this matrix: web (Vue), api (Rails), mobile (iOS). Ask this early if not fully explicit.
+- Do not include mobile scope unless user explicitly asks for mobile/iOS.
 - Stop asking once the task is sufficiently specified for execution.
 - Final plan must use canonical roles only: planner, builder, tester, reviewer, learner (optional).
 - Do NOT use legacy role aliases in outputs (backend-engineer, frontend-engineer, mobile-engineer, verifier, orchestrator, qa).
 - If stack/tecnologia já estiver definida no contexto, NÃO pergunte sobre stack novamente; avance para as próximas clarificações relevantes.
+- On completion, include \`spec.target_surfaces\` as an array with one or more of: web, api, mobile.
 - Phase guidance: 
   - mvp: prioritize must-have scope, fastest path to usable delivery
   - growth: prioritize expansion features and measurable impact

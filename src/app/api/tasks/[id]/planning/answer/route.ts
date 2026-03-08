@@ -55,6 +55,8 @@ Rules:
   planner, builder, tester, reviewer, learner
 - Do NOT emit legacy aliases such as backend-engineer, frontend-engineer, mobile-engineer, verifier, orchestrator, qa.
 - If learner is included, keep its instructions observational/support-oriented (pattern capture, lessons learned), not as primary implementer.
+- Completion MUST include \`spec.target_surfaces\` as an array containing one or more of: web, api, mobile.
+- Do not include mobile in \`spec.target_surfaces\` unless user explicitly requested mobile/iOS.
 
 For another question, respond with JSON:
 {
@@ -72,6 +74,7 @@ If planning is complete, respond with JSON:
   "spec": {
     "title": "Task title",
     "summary": "Summary of what needs to be done",
+    "target_surfaces": ["web", "api"],
     "deliverables": ["List of deliverables"],
     "success_criteria": ["How we know it's done"],
     "constraints": {}

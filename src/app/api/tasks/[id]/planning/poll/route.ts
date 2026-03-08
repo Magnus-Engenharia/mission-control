@@ -68,6 +68,22 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
   let firstAgentId: string | null = null;
   let firstDispatchableAgentId: string | null = null;
 
+  const rawSurfaces = Array.isArray(parsed?.spec?.target_surfaces)
+    ? parsed.spec.target_surfaces
+    : [];
+  const normalizedSurfaces = Array.from(
+    new Set(
+      rawSurfaces
+        .map((s: unknown) => String(s || '').trim().toLowerCase())
+        .filter((s: string) => s === 'web' || s === 'api' || s === 'mobile')
+    )
+  ) as Array<'web' | 'api' | 'mobile'>;
+
+  const selectedSurfaces: Array<'web' | 'api' | 'mobile'> =
+    normalizedSurfaces.length > 0
+      ? normalizedSurfaces
+      : (mobileIntent ? ['mobile'] : ['web', 'api']);
+
   // Transaction 1: Save planning data, create agents, AND assign agent to task
   // (Assigning before dispatch fixes the chicken-and-egg bug where dispatch
   // checks assigned_agent_id and fails because it wasn't set yet)
@@ -151,6 +167,9 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
 
     const taskStatus = firstAgentId ? 'assigned' : 'inbox';
 
+    const parentTarget: 'fullstack' | 'web' | 'api' | 'mobile' =
+      selectedSurfaces.length === 1 ? selectedSurfaces[0] : 'fullstack';
+
     // Save planning data + assign first planned/mapped agent + mark complete in one atomic step
     db.prepare(`
       UPDATE tasks
@@ -159,6 +178,7 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
           planning_agents = ?,
           planning_complete = 1,
           assigned_agent_id = ?,
+          target = ?,
           status = ?,
           planning_dispatch_error = NULL,
           updated_at = datetime('now')
@@ -168,9 +188,49 @@ async function handlePlanningCompletion(taskId: string, parsed: any, messages: a
       JSON.stringify(parsed.spec),
       JSON.stringify(parsed.agents),
       firstAgentId,
+      parentTarget,
       taskStatus,
       taskId
     );
+
+    // If multiple surfaces are required, explode into focused sibling tasks
+    if (selectedSurfaces.length > 1) {
+      const parentTask = db.prepare(`SELECT title, description, workspace_id, project_id, business_id, due_date, workflow_template_id FROM tasks WHERE id = ?`).get(taskId) as {
+        title: string;
+        description?: string | null;
+        workspace_id: string;
+        project_id?: string | null;
+        business_id?: string | null;
+        due_date?: string | null;
+        workflow_template_id?: string | null;
+      } | undefined;
+
+      if (parentTask) {
+        const existingTargets = new Set(
+          (db.prepare(`SELECT target FROM tasks WHERE workspace_id = ? AND project_id IS ? AND title LIKE ?`).all(parentTask.workspace_id, parentTask.project_id ?? null, `${parentTask.title} [%`) as Array<{ target?: string }>).map((r) => r.target)
+        );
+
+        const insertTask = db.prepare(`
+          INSERT INTO tasks (id, title, description, status, priority, target, assigned_agent_id, created_by_agent_id, workspace_id, project_id, business_id, due_date, workflow_template_id, created_at, updated_at)
+          VALUES (?, ?, ?, 'inbox', 'normal', ?, NULL, NULL, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `);
+
+        for (const surface of selectedSurfaces) {
+          if (existingTargets.has(surface)) continue;
+          insertTask.run(
+            crypto.randomUUID(),
+            `${parentTask.title} [${surface.toUpperCase()}]`,
+            `${parentTask.description || ''}\n\nSurface focus: ${surface}`.trim(),
+            surface,
+            parentTask.workspace_id,
+            parentTask.project_id || null,
+            parentTask.business_id || 'default',
+            parentTask.due_date || null,
+            parentTask.workflow_template_id || null
+          );
+        }
+      }
+    }
 
     return firstAgentId;
   });
@@ -366,6 +426,7 @@ export async function GET(
               messages,
               autoDispatched: !!firstDispatchableAgentId,
               dispatchError,
+              targetSurfaces: Array.isArray(fullParsed?.spec?.target_surfaces) ? fullParsed.spec.target_surfaces : undefined,
             });
           }
 
