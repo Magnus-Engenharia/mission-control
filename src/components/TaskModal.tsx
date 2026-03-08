@@ -365,21 +365,6 @@ export function TaskModal({ task, onClose, workspaceId }: TaskModalProps) {
             )}
           </div>
 
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Target</label>
-            <select
-              value={form.target}
-              onChange={(e) => setForm({ ...form, target: e.target.value as TaskTarget })}
-              className="w-full min-h-11 bg-mc-bg border border-mc-border rounded px-3 py-2 text-sm focus:outline-none focus:border-mc-accent"
-            >
-              <option value="fullstack">Fullstack</option>
-              <option value="web">Web (frontend)</option>
-              <option value="api">API (backend)</option>
-              <option value="mobile">Mobile</option>
-            </select>
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             {/* Priority */}
             <div>
