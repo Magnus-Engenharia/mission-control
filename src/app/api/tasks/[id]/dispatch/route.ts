@@ -73,6 +73,30 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // Builder execution discipline: one active task at a time.
+    if (agent.role === 'builder') {
+      const activeBuilderTask = queryOne<{ id: string; title: string; status: string }>(
+        `SELECT id, title, status FROM tasks
+         WHERE assigned_agent_id = ?
+           AND id != ?
+           AND status IN ('assigned','in_progress','testing','review','verification')
+         ORDER BY updated_at DESC
+         LIMIT 1`,
+        [agent.id, task.id]
+      );
+
+      if (activeBuilderTask) {
+        return NextResponse.json(
+          {
+            error: 'Builder already has an active task',
+            message: `Builder must run one task at a time. Active task: ${activeBuilderTask.title} (${activeBuilderTask.status}).`,
+            active_task: activeBuilderTask,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     // Check if dispatching to the master agent while there are other orchestrators available
     if (agent.is_master) {
       // Check for other master agents in the same workspace (excluding this one)

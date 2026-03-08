@@ -40,10 +40,19 @@ export async function POST(
       `SELECT id FROM workflow_templates WHERE workspace_id = ? AND name = 'Strict' LIMIT 1`
     ).get(objective.workspace_id) as { id: string } | undefined;
 
+    const builder = db.prepare(
+      `SELECT id FROM agents WHERE workspace_id = ? AND role = 'builder' AND status != 'offline' ORDER BY created_at ASC LIMIT 1`
+    ).get(objective.workspace_id) as { id: string } | undefined;
+
+    if (!builder?.id) {
+      return NextResponse.json({ error: 'No active builder agent available in this workspace' }, { status: 400 });
+    }
+
     let created = 0;
 
     const tx = db.transaction(() => {
-      for (const dt of draftTasks) {
+      for (let idx = 0; idx < draftTasks.length; idx++) {
+        const dt = draftTasks[idx];
         const title = String(dt.title || '').trim();
         if (!title) continue;
 
@@ -62,10 +71,11 @@ export async function POST(
           : 'fullstack';
         const priority = dt.priority === 'high' || dt.priority === 'low' ? dt.priority : 'normal';
 
+        const initialStatus = idx === 0 ? 'assigned' : 'inbox';
         db.prepare(
-          `INSERT INTO tasks (id, title, description, status, priority, target, workspace_id, project_id, created_at, updated_at)
-           VALUES (?, ?, ?, 'inbox', ?, ?, ?, ?, datetime('now'), datetime('now'))`
-        ).run(taskId, title, description, priority, target, objective.workspace_id, objective.project_id);
+          `INSERT INTO tasks (id, title, description, status, priority, target, assigned_agent_id, workspace_id, project_id, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+        ).run(taskId, title, description, initialStatus, priority, target, builder?.id || null, objective.workspace_id, objective.project_id);
 
         if (strict?.id) {
           db.prepare('UPDATE tasks SET workflow_template_id = ? WHERE id = ?').run(strict.id, taskId);
