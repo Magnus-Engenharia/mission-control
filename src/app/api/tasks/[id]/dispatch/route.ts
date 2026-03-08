@@ -396,6 +396,7 @@ Reply with: \`LEARN_DONE: [summary + files updated]\` or \`LEARN_FAIL: [what is 
       completionInstructions = `**YOUR ROLE: VERIFIER** — Verify that all work meets quality standards.
 
 Review deliverables, test results, and task requirements.
+- Reviewer independence rule: verify directly from code/diff/deliverables; do not rely solely on builder summary.
 ${uiReviewerGate}
 
 **If verification PASSES:**

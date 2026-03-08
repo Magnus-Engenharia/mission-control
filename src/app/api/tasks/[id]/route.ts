@@ -158,6 +158,52 @@ export async function PATCH(
 
     // Handle status change
     if (nextStatus !== undefined && nextStatus !== existing.status) {
+      // Handoff contract enforcement for agent-driven stage transitions
+      if (validatedData.updated_by_agent_id) {
+        const actor = queryOne<{ id: string; role: string }>('SELECT id, role FROM agents WHERE id = ?', [validatedData.updated_by_agent_id]);
+        if (actor) {
+          const lastCompletedActivity = queryOne<{ id: string }>(
+            `SELECT id FROM task_activities
+             WHERE task_id = ?
+               AND activity_type = 'completed'
+               AND (agent_id = ? OR agent_id IS NULL)
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [id, actor.id]
+          );
+          const hasCompletedActivity = Boolean(lastCompletedActivity);
+
+          const lastDeliverable = queryOne<{ id: string }>(
+            `SELECT id FROM task_deliverables
+             WHERE task_id = ?
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [id]
+          );
+          const hasDeliverable = Boolean(lastDeliverable);
+
+          // Builder must provide both completed activity + deliverable before leaving in_progress
+          if (existing.status === 'in_progress' && ['testing', 'review', 'verification', 'done'].includes(nextStatus)) {
+            if (!hasCompletedActivity || !hasDeliverable) {
+              return NextResponse.json(
+                { error: 'Handoff contract failed: builder must log completed activity and register at least one deliverable before stage transition.' },
+                { status: 409 }
+              );
+            }
+          }
+
+          // Tester/Reviewer/Learner must at least log completed activity before transition
+          if (['testing', 'review', 'verification'].includes(existing.status) && ['review', 'verification', 'done'].includes(nextStatus)) {
+            if (!hasCompletedActivity) {
+              return NextResponse.json(
+                { error: 'Handoff contract failed: stage transition requires a completed activity log from current actor.' },
+                { status: 409 }
+              );
+            }
+          }
+        }
+      }
+
       updates.push('status = ?');
       values.push(nextStatus);
 

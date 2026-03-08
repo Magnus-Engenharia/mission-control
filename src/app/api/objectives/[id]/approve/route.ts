@@ -37,6 +37,17 @@ export async function POST(
       return NextResponse.json({ error: 'Empty task draft list' }, { status: 400 });
     }
 
+    // Basic decomposition validation: avoid duplicate tiny tasks in same objective batch
+    const seen = new Set<string>();
+    for (const dt of draftTasks) {
+      const key = String(dt?.title || '').trim().toLowerCase();
+      if (!key) continue;
+      if (seen.has(key)) {
+        return NextResponse.json({ error: `Duplicate draft task title detected: ${dt.title}` }, { status: 400 });
+      }
+      seen.add(key);
+    }
+
     const db = getDb();
     const strict = db.prepare(
       `SELECT id FROM workflow_templates WHERE workspace_id = ? AND name = 'Strict' LIMIT 1`
